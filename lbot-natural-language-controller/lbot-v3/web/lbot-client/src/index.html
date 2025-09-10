@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LBot Chat</title>
+    <style>
+
+    </style>
+</head>
+<body>
+    <div class="status" id="status">Verificando...</div>
+
+    <div class="chat-header">
+        <h2>🤖 LBot Translator</h2>
+    </div>
+
+    <div class="chat-container">
+        <div class="chat-messages" id="messages">
+            <div class="message bot">
+                Olá! Digite um comando em português e eu traduzo para LBot.
+            </div>
+        </div>
+
+        <div class="chat-input">
+            <input
+                type="text"
+                id="messageInput"
+                placeholder="Digite seu comando..."
+                autocomplete="off"
+            >
+            <button id="sendBtn">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://ec2-15-228-173-198.sa-east-1.compute.amazonaws.com:8000';
+        const messages = document.getElementById('messages');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const status = document.getElementById('status');
+
+        // Verificar status da API
+        async function checkStatus() {
+            try {
+                const response = await fetch(`${API_URL}/`);
+                if (response.ok) {
+                    status.textContent = '🟢 Online';
+                    status.className = 'status online';
+                } else {
+                    throw new Error();
+                }
+            } catch {
+                status.textContent = '🔴 Offline';
+                status.className = 'status offline';
+            }
+        }
+
+        // Adicionar mensagem
+        function addMessage(text, type = 'bot') {
+            const message = document.createElement('div');
+            message.className = `message ${type}`;
+            message.textContent = text;
+            messages.appendChild(message);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // Mostrar digitando
+        function showTyping() {
+            const typing = document.createElement('div');
+            typing.className = 'message typing';
+            typing.id = 'typing';
+            typing.textContent = 'Traduzindo...';
+            messages.appendChild(typing);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        // Remover digitando
+        function hideTyping() {
+            const typing = document.getElementById('typing');
+            if (typing) typing.remove();
+        }
+
+        // Traduzir comando
+        async function translate(command) {
+            try {
+                const response = await fetch(`${API_URL}/translate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ command })
+                });
+
+                if (!response.ok) throw new Error('Erro na API');
+
+                const data = await response.json();
+                return data.result;
+            } catch (error) {
+                throw new Error('Erro na tradução');
+            }
+        }
+
+        // Enviar mensagem
+        async function sendMessage() {
+            const command = messageInput.value.trim();
+            if (!command) return;
+
+            // Adicionar mensagem do usuário
+            addMessage(command, 'user');
+            messageInput.value = '';
+            sendBtn.disabled = true;
+
+            // Mostrar digitando
+            showTyping();
+
+            try {
+                const result = await translate(command);
+                hideTyping();
+                addMessage(`🤖 ${result}`);
+            } catch (error) {
+                hideTyping();
+                addMessage('❌ Erro na tradução. Verifique se a API está rodando.', 'error');
+            } finally {
+                sendBtn.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        // Event listeners
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        // Inicializar
+        checkStatus();
+        setInterval(checkStatus, 30000);
+        messageInput.focus();
+    </script>
+</body>
+</html>

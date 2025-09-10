@@ -1,0 +1,60 @@
+# L-Bot Socket Control - Configuração
+
+## Sobre o Projeto
+O L-Bot Socket Control é um módulo do projeto L-Bot que permite controle remoto de robôs E-Puck através de sockets TCP.
+
+## Estrutura do Projeto
+```
+lbot-socket-control/
+├── build/                  # Diretório de compilação (gerado)
+├── CMakeLists.txt          # Configuração CMake
+├── README.md               # Documentação principal
+├── setup.sh                # Script de configuração automática
+├── enkiSocketControl.cpp   # Código principal C++
+├── enkiSocketControl.h     # Headers C++
+├── robot_controller.py     # Cliente Python
+└── .gitignore             # Arquivos a serem ignorados pelo Git
+```
+
+## Dependências
+- Enki Robotics Simulator
+- Qt5 (Core, Widgets, OpenGL, Xml, Network)
+- CMake 3.16+
+- Python 3.x
+
+## Comandos Rápidos
+
+### Setup e Compilação
+```bash
+./setup.sh
+```
+
+### Execução Manual
+```bash
+# Compilar
+mkdir -p build && cd build
+cmake .. && make
+
+# Executar simulação
+./lbot-socket-control
+
+# Executar controlador Python (outro terminal)
+cd .. && python3 robot_controller.py
+```
+
+### Comandos de Movimento
+- `10F` - 10 unidades para frente
+- `45R` - vira 45° à direita  
+- `30L` - vira 30° à esquerda
+- `5B` - 5 unidades para trás
+- `10F;30R;5F` - sequência: frente, vira, frente
+
+### Comandos Especiais
+- `status` - mostra posição atual
+- `stop` - para o robô
+- `quit` - encerra conexão
+
+## Integração com L-Bot
+Este módulo pode ser integrado com outros componentes do projeto L-Bot:
+- lbot-datagen (coleta de dados)
+- lbot-natural-language-controller (controle por linguagem natural)

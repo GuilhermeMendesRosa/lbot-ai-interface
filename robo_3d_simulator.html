@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Robô LBML</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            min-width: 500px;
+            z-index: 1000;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        #commandInput {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+            font-family: 'Courier New', monospace;
+        }
+
+        #commandInput:focus {
+            outline: none;
+            border-color: #764ba2;
+            box-shadow: 0 0 0 3px rgba(118, 75, 162, 0.1);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn-execute {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-execute:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(118, 75, 162, 0.4);
+        }
+
+        .btn-reset {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .info {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .info h3 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .commands-list {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            font-size: 12px;
+            color: #555;
+        }
+
+        .command-item {
+            padding: 3px;
+            background: white;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            font-size: 14px;
+            max-width: 250px;
+        }
+
+        .status-item {
+            margin: 5px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .status-label {
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .status-value {
+            font-family: 'Courier New', monospace;
+        }
+
+        .animation-indicator {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: #2ecc71;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            display: none;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #e74c3c;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            font-size: 18px;
+            display: none;
+            z-index: 2000;
+            animation: shake 0.5s;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+            25% { transform: translate(-50%, -50%) translateX(-10px); }
+            75% { transform: translate(-50%, -50%) translateX(10px); }
+        }
+
+        .trail-marker {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: rgba(102, 126, 234, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container">
+        <div class="status">
+            <div class="status-item">
+                <span class="status-label">Posição X:</span>
+                <span class="status-value" id="posX">0.0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Posição Z:</span>
+                <span class="status-value" id="posZ">0.0</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Rotação:</span>
+                <span class="status-value" id="rotation">0°</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Comando:</span>
+                <span class="status-value" id="currentCommand">-</span>
+            </div>
+        </div>
+
+        <div class="animation-indicator" id="animationIndicator">
+            EXECUTANDO...
+        </div>
+
+        <div class="error-message" id="errorMessage">
+            Comando inválido!
+        </div>
+
+        <div class="controls">
+            <div class="info">
+                <h3>Comandos LBML Suportados:</h3>
+                <div class="commands-list">
+                    <div class="command-item">D[n]F - Frente</div>
+                    <div class="command-item">D[n]B - Trás</div>
+                    <div class="command-item">D[n]L - Esquerda</div>
+                    <div class="command-item">D[n]R - Direita</div>
+                    <div class="command-item">R[n]L - Girar esquerda</div>
+                    <div class="command-item">R[n]R - Girar direita</div>
+                </div>
+            </div>
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    id="commandInput" 
+                    placeholder="Digite comandos LBML (ex: D40F;R90R;D20F;)"
+                    value="D40F;R90R;D20F;"
+                >
+                <button class="btn btn-execute" id="executeBtn">Executar</button>
+                <button class="btn btn-reset" id="resetBtn">Resetar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Configuração da cena
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xf0f0f0);
+        scene.fog = new THREE.Fog(0xf0f0f0, 100, 500);
+
+        // Configuração da câmera
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(100, 150, 200);
+        camera.lookAt(0, 0, 0);
+
+        // Configuração do renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // Iluminação
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(50, 100, 50);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.camera.left = -100;
+        directionalLight.shadow.camera.right = 100;
+        directionalLight.shadow.camera.top = 100;
+        directionalLight.shadow.camera.bottom = -100;
+        scene.add(directionalLight);
+
+        // Criação do piso com grid
+        const groundGeometry = new THREE.PlaneGeometry(400, 400);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff,
+            roughness: 0.8,
+            metalness: 0.2
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Grid
+        const gridHelper = new THREE.GridHelper(400, 40, 0x667eea, 0xcccccc);
+        scene.add(gridHelper);
+
+        // Criação do robô
+        const robotGroup = new THREE.Group();
+
+        // Corpo do robô
+        const bodyGeometry = new THREE.BoxGeometry(15, 20, 15);
+        const bodyMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x667eea,
+            metalness: 0.6,
+            roughness: 0.4
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 10;
+        body.castShadow = true;
+        robotGroup.add(body);
+
+        // Cabeça do robô
+        const headGeometry = new THREE.SphereGeometry(8, 32, 16);
+        const headMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x764ba2,
+            metalness: 0.5,
+            roughness: 0.3
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 25;
+        head.castShadow = true;
+        robotGroup.add(head);
+
+        // Olhos do robô
+        const eyeGeometry = new THREE.SphereGeometry(2, 16, 8);
+        const eyeMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xffffff,
+            emissive: 0x00ff00,
+            emissiveIntensity: 0.5
+        });
+        
+        const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        leftEye.position.set(-3, 25, 7);
+        robotGroup.add(leftEye);
+
+        const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+        rightEye.position.set(3, 25, 7);
+        robotGroup.add(rightEye);
+
+        // Rodas do robô
+        const wheelGeometry = new THREE.CylinderGeometry(3, 3, 2, 16);
+        const wheelMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x333333,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+
+        const leftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+        leftWheel.rotation.z = Math.PI / 2;
+        leftWheel.position.set(-8, 2, 0);
+        leftWheel.castShadow = true;
+        robotGroup.add(leftWheel);
+
+        const rightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+        rightWheel.rotation.z = Math.PI / 2;
+        rightWheel.position.set(8, 2, 0);
+        rightWheel.castShadow = true;
+        robotGroup.add(rightWheel);
+
+        // Seta indicadora de direção
+        const arrowGeometry = new THREE.ConeGeometry(3, 8, 8);
+        const arrowMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0xe74c3c,
+            metalness: 0.5,
+            roughness: 0.3
+        });
+        const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+        arrow.rotation.x = Math.PI / 2;
+        arrow.position.set(0, 15, 10);
+        robotGroup.add(arrow);
+
+        scene.add(robotGroup);
+
+        // Estado do robô
+        let robotState = {
+            x: 0,
+            z: 0,
+            rotation: 0,
+            isAnimating: false,
+            commandQueue: [],
+            trail: []
+        };
+
+        // Parser de comandos LBML
+        function parseLBMLCommand(command) {
+            const regex = /^([DR])(\d+)([FBLR]);$/;
+            const match = command.match(regex);
+            
+            if (!match) return null;
+            
+            const [, prefix, value, direction] = match;
+            const numValue = parseInt(value);
+            
+            // Validação de direções
+            if (prefix === 'D' && !['F', 'B', 'L', 'R'].includes(direction)) return null;
+            if (prefix === 'R' && !['L', 'R'].includes(direction)) return null;
+            
+            return {
+                type: prefix,
+                value: numValue,
+                direction: direction
+            };
+        }
+
+        // Função para executar comandos
+        async function executeCommand(cmd) {
+            if (!cmd) return;
+
+            document.getElementById('currentCommand').textContent = 
+                `${cmd.type}${cmd.value}${cmd.direction}`;
+
+            if (cmd.type === 'D') {
+                // Deslocamento
+                const scale = 1; // 1 unidade = 1cm no simulador
+                const distance = cmd.value * scale;
+                
+                let targetX = robotState.x;
+                let targetZ = robotState.z;
+                
+                const rad = robotState.rotation * Math.PI / 180;
+                
+                switch(cmd.direction) {
+                    case 'F':
+                        targetX += Math.sin(rad) * distance;
+                        targetZ += Math.cos(rad) * distance;
+                        break;
+                    case 'B':
+                        targetX -= Math.sin(rad) * distance;
+                        targetZ -= Math.cos(rad) * distance;
+                        break;
+                    case 'L':
+                        targetX += Math.cos(rad) * distance;
+                        targetZ -= Math.sin(rad) * distance;
+                        break;
+                    case 'R':
+                        targetX -= Math.cos(rad) * distance;
+                        targetZ += Math.sin(rad) * distance;
+                        break;
+                }
+                
+                await animateMovement(targetX, targetZ);
+                
+            } else if (cmd.type === 'R') {
+                // Rotação
+                const angle = cmd.value;
+                const targetRotation = robotState.rotation + (cmd.direction === 'R' ? -angle : angle);
+                
+                await animateRotation(targetRotation);
+            }
+        }
+
+        // Animação de movimento
+        function animateMovement(targetX, targetZ) {
+            return new Promise(resolve => {
+                const startX = robotState.x;
+                const startZ = robotState.z;
+                const duration = 1000; // 1 segundo
+                const startTime = Date.now();
+                
+                function animate() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Easing function
+                    const easeProgress = 1 - Math.pow(1 - progress, 3);
+                    
+                    robotState.x = startX + (targetX - startX) * easeProgress;
+                    robotState.z = startZ + (targetZ - startZ) * easeProgress;
+                    
+                    robotGroup.position.x = robotState.x;
+                    robotGroup.position.z = robotState.z;
+                    
+                    // Atualizar status
+                    document.getElementById('posX').textContent = robotState.x.toFixed(1);
+                    document.getElementById('posZ').textContent = robotState.z.toFixed(1);
+                    
+                    // Animação das rodas
+                    robotGroup.children.forEach(child => {
+                        if (child.geometry instanceof THREE.CylinderGeometry) {
+                            child.rotation.x += 0.2;
+                        }
+                    });
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        resolve();
+                    }
+                }
+                
+                animate();
+            });
+        }
+
+        // Animação de rotação
+        function animateRotation(targetRotation) {
+            return new Promise(resolve => {
+                const startRotation = robotState.rotation;
+                const duration = 800;
+                const startTime = Date.now();
+                
+                function animate() {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Easing function
+                    const easeProgress = 1 - Math.pow(1 - progress, 3);
+                    
+                    robotState.rotation = startRotation + (targetRotation - startRotation) * easeProgress;
+                    robotGroup.rotation.y = robotState.rotation * Math.PI / 180;
+                    
+                    // Atualizar status
+                    document.getElementById('rotation').textContent = 
+                        Math.round(robotState.rotation % 360) + '°';
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        resolve();
+                    }
+                }
+                
+                animate();
+            });
+        }
+
+        // Executar sequência de comandos
+        async function executeCommandSequence() {
+            if (robotState.isAnimating) return;
+            
+            const input = document.getElementById('commandInput').value.trim();
+            if (!input) return;
+            
+            const commands = input.split(';').filter(cmd => cmd.trim());
+            const parsedCommands = [];
+            
+            // Validar todos os comandos
+            for (let cmd of commands) {
+                const parsed = parseLBMLCommand(cmd.trim() + ';');
+                if (!parsed) {
+                    showError();
+                    return;
+                }
+                parsedCommands.push(parsed);
+            }
+            
+            // Executar comandos
+            robotState.isAnimating = true;
+            document.getElementById('executeBtn').disabled = true;
+            document.getElementById('animationIndicator').style.display = 'block';
+            
+            for (let cmd of parsedCommands) {
+                await executeCommand(cmd);
+                await new Promise(resolve => setTimeout(resolve, 200)); // Pausa entre comandos
+            }
+            
+            robotState.isAnimating = false;
+            document.getElementById('executeBtn').disabled = false;
+            document.getElementById('animationIndicator').style.display = 'none';
+            document.getElementById('currentCommand').textContent = '-';
+        }
+
+        // Mostrar erro
+        function showError() {
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.style.display = 'block';
+            setTimeout(() => {
+                errorMsg.style.display = 'none';
+            }, 2000);
+        }
+
+        // Reset do robô
+        function resetRobot() {
+            robotState.x = 0;
+            robotState.z = 0;
+            robotState.rotation = 0;
+            robotGroup.position.set(0, 0, 0);
+            robotGroup.rotation.y = 0;
+            
+            document.getElementById('posX').textContent = '0.0';
+            document.getElementById('posZ').textContent = '0.0';
+            document.getElementById('rotation').textContent = '0°';
+            document.getElementById('currentCommand').textContent = '-';
+        }
+
+        // Event listeners
+        document.getElementById('executeBtn').addEventListener('click', executeCommandSequence);
+        document.getElementById('resetBtn').addEventListener('click', resetRobot);
+        document.getElementById('commandInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                executeCommandSequence();
+            }
+        });
+
+        // Controles de câmera com mouse
+        let mouseX = 0, mouseY = 0;
+        let isMouseDown = false;
+
+        document.addEventListener('mousedown', () => isMouseDown = true);
+        document.addEventListener('mouseup', () => isMouseDown = false);
+        document.addEventListener('mousemove', (e) => {
+            if (isMouseDown) {
+                mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+            }
+        });
+
+        // Loop de renderização
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Rotação suave da câmera
+            if (isMouseDown) {
+                camera.position.x = 100 * Math.cos(mouseX * Math.PI);
+                camera.position.z = 200 * Math.sin(mouseX * Math.PI);
+                camera.position.y = 150 + mouseY * 50;
+                camera.lookAt(robotGroup.position);
+            }
+            
+            // Pequena animação idle do robô
+            if (!robotState.isAnimating) {
+                robotGroup.children[1].position.y = 25 + Math.sin(Date.now() * 0.001) * 0.5;
+            }
+            
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Ajustar tamanho da janela
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
