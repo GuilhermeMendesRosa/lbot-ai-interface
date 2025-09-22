@@ -14,6 +14,16 @@
   box-sizing: border-box;
 }
 
+.chat-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: white;
+  border-radius: 24px;
+  overflow: hidden;
+}
+
 .chat-header {
   background: #333;
   color: white;
@@ -31,9 +41,8 @@
   width: 100%;
   padding: 0;
   margin: 0;
-  background: white;
+  background: transparent;
   overflow: hidden;
-  border-radius: 24px;
 }
 
 .chat-messages {

@@ -1,12 +1,13 @@
 <!-- lbot-chat.component.html -->
-<div class="chat-header">
-  <h2>🤖 LBot Translator</h2>
-  <button class="end-chat-btn" (click)="showObservationPopup()" title="Finalizar Chat" [disabled]="isWaitingForRating">
-    ✕
-  </button>
-</div>
+<div class="chat-wrapper">
+  <div class="chat-header">
+    <h2>🤖 LBot Translator</h2>
+    <button class="end-chat-btn" (click)="showObservationPopup()" title="Finalizar Chat" [disabled]="isWaitingForRating">
+      ✕
+    </button>
+  </div>
 
-<div class="chat-container">
+  <div class="chat-container">
   <div class="chat-messages">
     <div *ngFor="let message of messages" class="message" [ngClass]="message.type">
       {{ message.text }}
@@ -27,6 +28,7 @@
     <button (click)="sendMessage()" [disabled]="isLoading || !messageInput.trim() || isWaitingForRating">
       Enviar
     </button>
+  </div>
   </div>
 </div>
 
