@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Robô LBML (Embed)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body { background: #f0f5f0; overflow: hidden; font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
+        #canvas-container { position: absolute; inset: 0; }
+        .status { position: absolute; top: 12px; left: 12px; background: rgba(255,255,255,0.9); padding: 10px 12px; border-radius: 8px; font-size: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.15); }
+        .status-item { display: flex; gap: 6px; justify-content: space-between; }
+        .status-label { font-weight: 600; color: #2e7d32; }
+        .status-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .indicator { position: absolute; top: 12px; right: 12px; background: #2e7d32; color: #fff; padding: 6px 12px; border-radius: 999px; font-weight: 700; display: none; }
+        .error { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: #c62828; color: #fff; padding: 12px 16px; border-radius: 10px; display: none; }
+    </style>
+</head>
+<body>
+<div id="canvas-container">
+    <div class="status">
+        <div class="status-item"><span class="status-label">Posição X:</span><span class="status-value" id="posX">0.0</span></div>
+        <div class="status-item"><span class="status-label">Posição Z:</span><span class="status-value" id="posZ">0.0</span></div>
+        <div class="status-item"><span class="status-label">Rotação:</span><span class="status-value" id="rotation">0°</span></div>
+        <div class="status-item"><span class="status-label">Comando:</span><span class="status-value" id="currentCommand">-</span></div>
+    </div>
+    <div class="indicator" id="animationIndicator">EXECUTANDO...</div>
+    <div class="error" id="errorMessage">Comando inválido!</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// --- Core scene setup (derived from robo_3d_simulator.html, UI removed) ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB, 200, 800);
+
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(100, 150, 200);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambientLight);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+directionalLight.position.set(100, 200, 100);
+directionalLight.castShadow = true;
+directionalLight.shadow.camera.left = -200;
+directionalLight.shadow.camera.right = 200;
+directionalLight.shadow.camera.top = 200;
+directionalLight.shadow.camera.bottom = -200;
+directionalLight.shadow.camera.near = 1;
+directionalLight.shadow.camera.far = 500;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+scene.add(directionalLight);
+const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x228B22, 0.6);
+scene.add(hemisphereLight);
+
+const grassTexture = new THREE.TextureLoader().load('data:image/svg+xml;base64,' + btoa(`
+    <svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="grass" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+          <rect width="8" height="8" fill="#228B22"/>
+          <path d="M2,8 Q2,6 1,4 Q2,2 3,0" stroke="#32CD32" stroke-width="0.5" fill="none"/>
+          <path d="M4,8 Q4,6 5,4 Q4,2 3,0" stroke="#32CD32" stroke-width="0.5" fill="none"/>
+          <path d="M6,8 Q6,6 7,4 Q6,2 5,0" stroke="#32CD32" stroke-width="0.5" fill="none"/>
+          <circle cx="1" cy="7" r="0.3" fill="#90EE90"/>
+          <circle cx="5" cy="6" r="0.2" fill="#90EE90"/>
+          <circle cx="7" cy="7" r="0.25" fill="#90EE90"/>
+        </pattern>
+      </defs>
+      <rect width="64" height="64" fill="url(#grass)"/>
+    </svg>
+`));
+grassTexture.wrapS = THREE.RepeatWrapping;
+grassTexture.wrapT = THREE.RepeatWrapping;
+grassTexture.repeat.set(50, 50);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshLambertMaterial({ map: grassTexture, color: 0x90EE90 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const gridHelper = new THREE.GridHelper(400, 40, 0x4CAF50, 0x90EE90);
+gridHelper.material.opacity = 0.3;
+gridHelper.material.transparent = true;
+scene.add(gridHelper);
+
+const robotGroup = new THREE.Group();
+const chassis = new THREE.Mesh(new THREE.BoxGeometry(20, 4, 30), new THREE.MeshStandardMaterial({ color: 0x2C3E50, metalness: 0.7, roughness: 0.3 }));
+chassis.position.y = 6; chassis.castShadow = true; robotGroup.add(chassis);
+const body = new THREE.Mesh(new THREE.BoxGeometry(18, 8, 25), new THREE.MeshStandardMaterial({ color: 0x3498DB, metalness: 0.6, roughness: 0.4 }));
+body.position.y = 12; body.castShadow = true; robotGroup.add(body);
+const hood = new THREE.Mesh(new THREE.BoxGeometry(16, 3, 8), new THREE.MeshStandardMaterial({ color: 0xE74C3C, metalness: 0.5, roughness: 0.3 }));
+hood.position.set(0, 16.5, 8); hood.castShadow = true; robotGroup.add(hood);
+const windshield = new THREE.Mesh(new THREE.BoxGeometry(16, 6, 1), new THREE.MeshStandardMaterial({ color: 0x87CEEB, metalness: 0.1, roughness: 0.1, transparent: true, opacity: 0.7 }));
+windshield.position.set(0, 15, 4); windshield.rotation.x = -0.2; robotGroup.add(windshield);
+const headlightGeometry = new THREE.CylinderGeometry(2, 2, 1, 12);
+const headlightMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffaa, emissiveIntensity: 0.5 });
+const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial); leftHeadlight.rotation.z = Math.PI / 2; leftHeadlight.position.set(-6, 13, 15.5); robotGroup.add(leftHeadlight);
+const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial); rightHeadlight.rotation.z = Math.PI / 2; rightHeadlight.position.set(6, 13, 15.5); robotGroup.add(rightHeadlight);
+const grill = new THREE.Mesh(new THREE.BoxGeometry(12, 4, 0.5), new THREE.MeshStandardMaterial({ color: 0x2C3E50, metalness: 0.8, roughness: 0.2 }));
+grill.position.set(0, 11, 15.2); robotGroup.add(grill);
+const wheelGeometry = new THREE.CylinderGeometry(4, 4, 3, 16);
+const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x2C3E50, metalness: 0.8, roughness: 0.2 });
+const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial); frontLeftWheel.rotation.z = Math.PI / 2; frontLeftWheel.position.set(-11, 4, 10); frontLeftWheel.castShadow = true; robotGroup.add(frontLeftWheel);
+const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial); frontRightWheel.rotation.z = Math.PI / 2; frontRightWheel.position.set(11, 4, 10); frontRightWheel.castShadow = true; robotGroup.add(frontRightWheel);
+const rearLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial); rearLeftWheel.rotation.z = Math.PI / 2; rearLeftWheel.position.set(-11, 4, -10); rearLeftWheel.castShadow = true; robotGroup.add(rearLeftWheel);
+const rearRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial); rearRightWheel.rotation.z = Math.PI / 2; rearRightWheel.position.set(11, 4, -10); rearRightWheel.castShadow = true; robotGroup.add(rearRightWheel);
+const wheelDetailGeometry = new THREE.CylinderGeometry(2.5, 2.5, 3.5, 8);
+const wheelDetailMaterial = new THREE.MeshStandardMaterial({ color: 0x95A5A6, metalness: 0.9, roughness: 0.1 });
+const frontLeftWheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial); frontLeftWheelDetail.rotation.z = Math.PI / 2; frontLeftWheelDetail.position.set(-11, 4, 10); robotGroup.add(frontLeftWheelDetail);
+const frontRightWheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial); frontRightWheelDetail.rotation.z = Math.PI / 2; frontRightWheelDetail.position.set(11, 4, 10); robotGroup.add(frontRightWheelDetail);
+const rearLeftWheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial); rearLeftWheelDetail.rotation.z = Math.PI / 2; rearLeftWheelDetail.position.set(-11, 4, -10); robotGroup.add(rearLeftWheelDetail);
+const rearRightWheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial); rearRightWheelDetail.rotation.z = Math.PI / 2; rearRightWheelDetail.position.set(11, 4, -10); robotGroup.add(rearRightWheelDetail);
+const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 6, 8), new THREE.MeshStandardMaterial({ color: 0x95A5A6, metalness: 0.8, roughness: 0.2 }));
+antenna.position.set(0, 19, -5); robotGroup.add(antenna);
+const antennaLed = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshStandardMaterial({ color: 0xFF0000, emissive: 0xFF0000, emissiveIntensity: 0.4 }));
+antennaLed.position.set(0, 22, -5); robotGroup.add(antennaLed);
+const arrow = new THREE.Mesh(new THREE.ConeGeometry(2, 4, 8), new THREE.MeshStandardMaterial({ color: 0xFFFF00, metalness: 0.5, roughness: 0.3, emissive: 0xFFFF00, emissiveIntensity: 0.3 }));
+arrow.rotation.x = Math.PI / 2; arrow.position.set(0, 17, 12); robotGroup.add(arrow);
+scene.add(robotGroup);
+
+let robotState = { x: 0, z: 0, rotation: 0, isAnimating: false };
+
+function parseLBMLCommand(command) {
+  const regex = /^([DR])(\d+)([FBLR]);$/;
+  const match = command.match(regex);
+  if (!match) return null;
+  const [, prefix, value, direction] = match; const numValue = parseInt(value);
+  if (prefix === 'D' && !['F', 'B', 'L', 'R'].includes(direction)) return null;
+  if (prefix === 'R' && !['L', 'R'].includes(direction)) return null;
+  return { type: prefix, value: numValue, direction };
+}
+
+async function executeCommand(cmd) {
+  if (!cmd) return;
+  document.getElementById('currentCommand').textContent = `${cmd.type}${cmd.value}${cmd.direction}`;
+  if (cmd.type === 'D') {
+    const distance = cmd.value;
+    let targetX = robotState.x; let targetZ = robotState.z; const rad = robotState.rotation * Math.PI / 180;
+    switch(cmd.direction) {
+      case 'F': targetX += Math.sin(rad) * distance; targetZ += Math.cos(rad) * distance; break;
+      case 'B': targetX -= Math.sin(rad) * distance; targetZ -= Math.cos(rad) * distance; break;
+      case 'L': targetX += Math.cos(rad) * distance; targetZ -= Math.sin(rad) * distance; break;
+      case 'R': targetX -= Math.cos(rad) * distance; targetZ += Math.sin(rad) * distance; break;
+    }
+    await animateMovement(targetX, targetZ);
+  } else if (cmd.type === 'R') {
+    const angle = cmd.value; const targetRotation = robotState.rotation + (cmd.direction === 'R' ? -angle : angle);
+    await animateRotation(targetRotation);
+  }
+}
+
+function animateMovement(targetX, targetZ) {
+  return new Promise(resolve => {
+    const startX = robotState.x; const startZ = robotState.z; const duration = 2000; const startTime = Date.now();
+    function animate() {
+      const elapsed = Date.now() - startTime; const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      robotState.x = startX + (targetX - startX) * easeProgress; robotState.z = startZ + (targetZ - startZ) * easeProgress;
+      robotGroup.position.x = robotState.x; robotGroup.position.z = robotState.z;
+      document.getElementById('posX').textContent = robotState.x.toFixed(1);
+      document.getElementById('posZ').textContent = robotState.z.toFixed(1);
+      const wheelSpeed = 0.1; robotGroup.children.forEach((child, index) => { if (child.geometry instanceof THREE.CylinderGeometry && (index >= 8 && index <= 11)) { child.rotation.x += wheelSpeed; } });
+      robotGroup.position.y = Math.sin(elapsed * 0.01) * 0.5;
+      if (progress < 1) { requestAnimationFrame(animate); } else { robotGroup.position.y = 0; resolve(); }
+    }
+    animate();
+  });
+}
+
+function animateRotation(targetRotation) {
+  return new Promise(resolve => {
+    const startRotation = robotState.rotation; const duration = 1500; const startTime = Date.now();
+    function animate() {
+      const elapsed = Date.now() - startTime; const progress = Math.min(elapsed / duration, 1);
+      const easeProgress = progress < 0.5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      robotState.rotation = startRotation + (targetRotation - startRotation) * easeProgress; robotGroup.rotation.y = robotState.rotation * Math.PI / 180;
+      document.getElementById('rotation').textContent = Math.round(robotState.rotation % 360) + '°';
+      robotGroup.rotation.z = Math.sin(progress * Math.PI) * 0.05;
+      if (progress < 1) { requestAnimationFrame(animate); } else { robotGroup.rotation.z = 0; resolve(); }
+    }
+    animate();
+  });
+}
+
+function resetRobot() {
+  robotState.x = 0; robotState.z = 0; robotState.rotation = 0;
+  robotGroup.position.set(0, 0, 0); robotGroup.rotation.set(0, 0, 0);
+  document.getElementById('posX').textContent = '0.0';
+  document.getElementById('posZ').textContent = '0.0';
+  document.getElementById('rotation').textContent = '0°';
+  document.getElementById('currentCommand').textContent = '-';
+}
+
+async function executeCommandSequenceFromString(input) {
+  const commands = (input || '').split(';').filter(cmd => cmd.trim());
+  const parsedCommands = [];
+  for (let cmd of commands) {
+    const parsed = parseLBMLCommand(cmd.trim() + ';');
+    if (!parsed) { showError(); return; }
+    parsedCommands.push(parsed);
+  }
+  if (parsedCommands.length === 0) return;
+  if (robotState.isAnimating) return;
+  robotState.isAnimating = true;
+  document.getElementById('animationIndicator').style.display = 'block';
+  for (let cmd of parsedCommands) {
+    await executeCommand(cmd);
+    await new Promise(r => setTimeout(r, 300));
+  }
+  robotState.isAnimating = false;
+  document.getElementById('animationIndicator').style.display = 'none';
+  document.getElementById('currentCommand').textContent = '-';
+}
+
+function showError() {
+  const el = document.getElementById('errorMessage');
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 1500);
+}
+
+// Render loop
+let mouseX = 0, mouseY = 0, isMouseDown = false;
+document.addEventListener('mousedown', () => isMouseDown = true);
+document.addEventListener('mouseup', () => isMouseDown = false);
+document.addEventListener('mousemove', (e) => { if (isMouseDown) { mouseX = (e.clientX / window.innerWidth) * 2 - 1; mouseY = -(e.clientY / window.innerHeight) * 2 + 1; } });
+function animate() {
+  requestAnimationFrame(animate);
+  if (isMouseDown) {
+    camera.position.x = 100 * Math.cos(mouseX * Math.PI);
+    camera.position.z = 200 * Math.sin(mouseX * Math.PI);
+    camera.position.y = 150 + mouseY * 50;
+    camera.lookAt(robotGroup.position);
+  }
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// --- Messaging interface ---
+const ORIGIN_ANY = '*';
+function postAck(type, payload) {
+  try { parent.postMessage({ type, ...payload }, ORIGIN_ANY); } catch {}
+}
+window.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (typeof data !== 'object') return;
+  if (data.type === 'lbml-exec') {
+    executeCommandSequenceFromString(String(data.payload || ''))
+      .then(() => postAck('lbml-exec-done', { ok: true }))
+      .catch(() => postAck('lbml-exec-done', { ok: false }));
+  } else if (data.type === 'lbml-reset') {
+    resetRobot(); postAck('lbml-reset-done', { ok: true });
+  }
+});
+</script>
+</body>
+</html>
+

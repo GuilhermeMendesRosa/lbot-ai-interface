@@ -53,13 +53,13 @@ public class AIService {
         try {
             log.info("Processando comando: {}", prompt);
 
-            if (!isConnectedToRobot()) {
-                log.warn("Não conectado ao robô. Tentando reconectar...");
-                if (!connectToRobot()) {
-                    log.error("Falha na conexão com o robô!");
-                    return "ERRO: Não foi possível conectar ao robô";
-                }
-            }
+//            if (!isConnectedToRobot()) {
+//                log.warn("Não conectado ao robô. Tentando reconectar...");
+//                if (!connectToRobot()) {
+//                    log.error("Falha na conexão com o robô!");
+//                    return "ERRO: Não foi possível conectar ao robô";
+//                }
+//            }
 
             String normalizedPrompt = normalizePromptImCm(prompt);
             log.info("Prompt normalizado: {}", normalizedPrompt);
@@ -67,15 +67,15 @@ public class AIService {
             String lbmlCommand = convertToLML(normalizedPrompt);
             log.info("Comando LBML gerado: {}", lbmlCommand);
 
-            boolean success = sendCommandToRobot(lbmlCommand);
+//            boolean success = sendCommandToRobot(lbmlCommand);
 
-            if (success) {
-                log.info("Comando executado com sucesso no robô!");
+//            if (success) {
+//                log.info("Comando executado com sucesso no robô!");
                 return lbmlCommand;
-            } else {
-                log.error("Falha ao executar comando no robô");
-                return "ERRO: Falha na execução";
-            }
+//            } else {
+//                log.error("Falha ao executar comando no robô");
+//                return "ERRO: Falha na execução";
+//            }
 
         } catch (Exception e) {
             log.error("Erro ao processar e executar comando: {}", e.getMessage(), e);

@@ -3,6 +3,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChatDto, EvaluateResponse, MessageDto, MessagesService } from '../../services/messages-service';
+import { SimulatorBridgeService } from '../../services/simulator-bridge.service';
 
 interface Message {
   text: string;
@@ -47,7 +48,7 @@ export class LbotChat implements OnInit, OnDestroy {
   // ID do chat atual
   chatId = '';
 
-  constructor(private messagesService: MessagesService) { }
+  constructor(private messagesService: MessagesService, private simulatorBridge: SimulatorBridgeService) { }
 
   ngOnInit(): void {
     this.initializeChat();
@@ -103,6 +104,11 @@ export class LbotChat implements OnInit, OnDestroy {
 
         this.isLoading = false;
         this.scrollToBottom();
+
+        // Enviar o output LBML para o simulador
+        if (response.output) {
+          this.simulatorBridge.executeLbml(response.output);
+        }
 
         // Armazenar o ID da mensagem para avaliação
         this.currentMessageId = response.id;
