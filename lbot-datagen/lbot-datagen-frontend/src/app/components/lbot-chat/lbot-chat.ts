@@ -11,6 +11,8 @@ interface Message {
   messageId?: string;
   normalizedPrompt?: string;
   output?: string;
+  rated?: boolean;
+  rating?: number;
 }
 
 @Component({
@@ -27,16 +29,6 @@ export class LbotChat implements OnInit, OnDestroy {
   messageInput = '';
   isLoading = false;
 
-  // Variáveis para controlar o período de espera
-  isWaitingForRating = false;
-  countdown = 5;
-  countdownInterval: any;
-
-  // Variáveis para o popup de avaliação (após cada mensagem)
-  showRating = false;
-  selectedRating = 0;
-  hoverRating = 0;
-  currentMessageId = '';
 
   // Variáveis para o popup de observação (ao finalizar)
   showObservation = false;
@@ -47,6 +39,11 @@ export class LbotChat implements OnInit, OnDestroy {
 
   // ID do chat atual
   chatId = '';
+
+  // Controles para long press e mostrar reações
+  showingReactionsFor: string | null = null;
+  longPressTimer: any = null;
+  longPressDelay = 500; // 500ms para ativar
 
   constructor(private messagesService: MessagesService, private simulatorBridge: SimulatorBridgeService) { }
 
@@ -74,7 +71,7 @@ export class LbotChat implements OnInit, OnDestroy {
 
   sendMessage(): void {
     const command = this.messageInput.trim();
-    if (!command || this.isLoading || this.isWaitingForRating || !this.chatId) return;
+    if (!command || this.isLoading || !this.chatId) return;
 
     // Adicionar mensagem do usuário
     this.messages.push({ text: command, type: 'user' });
@@ -109,12 +106,6 @@ export class LbotChat implements OnInit, OnDestroy {
         if (response.output) {
           this.simulatorBridge.executeLbml(response.output);
         }
-
-        // Armazenar o ID da mensagem para avaliação
-        this.currentMessageId = response.id;
-
-        // Iniciar período de espera de 5 segundos
-        this.startWaitingPeriod();
       },
       error: (error: any) => {
         console.error('Erro ao enviar mensagem:', error);
@@ -128,76 +119,87 @@ export class LbotChat implements OnInit, OnDestroy {
     });
   }
 
-  startWaitingPeriod(): void {
-    this.isWaitingForRating = true;
-    this.countdown = 5;
-    this.scrollToBottom();
+  // Métodos para controlar long press
+  startLongPress(messageId: string, event: MouseEvent | TouchEvent): void {
+    event.preventDefault();
+    this.clearLongPress();
+    
+    this.longPressTimer = setTimeout(() => {
+      this.showingReactionsFor = messageId;
+    }, this.longPressDelay);
+  }
 
-    this.countdownInterval = setInterval(() => {
-      this.countdown--;
+  endLongPress(event: MouseEvent | TouchEvent): void {
+    event.preventDefault();
+    this.clearLongPress();
+  }
 
-      if (this.countdown <= 0) {
-        clearInterval(this.countdownInterval);
-        this.isWaitingForRating = false;
-        this.showRatingPopup();
+  clearLongPress(): void {
+    if (this.longPressTimer) {
+      clearTimeout(this.longPressTimer);
+      this.longPressTimer = null;
+    }
+  }
+
+  hideReactions(): void {
+    this.showingReactionsFor = null;
+  }
+
+  // Verificar se deve mostrar reações para uma mensagem específica
+  shouldShowReactions(messageId: string): boolean {
+    return this.showingReactionsFor === messageId;
+  }
+
+  // Novo método para avaliação rápida com reações
+  quickRate(messageId: string, rating: number, event?: MouseEvent | TouchEvent): void {
+    if (event) {
+      event.stopPropagation();
+    }
+
+    // Esconder as reações imediatamente após avaliar
+    this.hideReactions();
+
+    // Encontrar a mensagem e marcá-la como avaliada
+    const message = this.messages.find(m => m.messageId === messageId);
+    if (message) {
+      message.rated = true;
+      message.rating = rating;
+    }
+
+    // Enviar avaliação para a API
+    this.messagesService.evaluateMessage({
+      messageId: messageId,
+      grade: rating
+    }).subscribe({
+      next: (response: EvaluateResponse) => {
+        console.log('Avaliação enviada com sucesso:', response);
+        console.log(`Mensagem ${messageId} avaliada com nota ${rating}`);
+
+        // Armazenar a avaliação localmente
+        this.ratings.push(rating);
+        console.log('Todas as avaliações:', this.ratings);
+      },
+      error: (error: any) => {
+        console.error('Erro ao enviar avaliação:', error);
+        // Mesmo com erro, armazenar localmente e manter a UI atualizada
+        this.ratings.push(rating);
       }
-    }, 1000);
+    });
   }
 
-  showRatingPopup(): void {
-    this.showRating = true;
-    this.selectedRating = 0;
-    this.hoverRating = 0;
-  }
-
-  closeRatingPopup(): void {
-    this.showRating = false;
-    this.selectedRating = 0;
-    this.hoverRating = 0;
-    this.currentMessageId = '';
-  }
-
-  selectRating(rating: number): void {
-    this.selectedRating = rating;
-  }
-
-  submitRating(): void {
-    if (this.selectedRating > 0 && this.currentMessageId) {
-      // Enviar avaliação para a API
-      this.messagesService.evaluateMessage({
-        messageId: this.currentMessageId,
-        grade: this.selectedRating
-      }).subscribe({
-        next: (response: EvaluateResponse) => {
-          console.log('Avaliação enviada com sucesso:', response);
-          console.log(`Mensagem ${this.currentMessageId} avaliada com nota ${this.selectedRating}`);
-
-          // Armazenar a avaliação localmente
-          this.ratings.push(this.selectedRating);
-          console.log('Todas as avaliações:', this.ratings);
-
-          this.closeRatingPopup();
-        },
-        error: (error: any) => {
-          console.error('Erro ao enviar avaliação:', error);
-          // Mesmo com erro, armazenar localmente
-          this.ratings.push(this.selectedRating);
-          this.closeRatingPopup();
-
-          // Mostrar mensagem de erro (opcional)
-          this.messages.push({
-            text: 'Avaliação registrada localmente (erro na conexão).',
-            type: 'error'
-          });
-          this.scrollToBottom();
-        }
-      });
+  // Método para retornar o emoji correspondente à avaliação
+  getRatingEmoji(rating: number): string {
+    switch (rating) {
+      case 1: return '😞';
+      case 2: return '😐';
+      case 3: return '😊';
+      case 4: return '😄';
+      case 5: return '🤩';
+      default: return '😊';
     }
   }
 
   showObservationPopup(): void {
-    if (this.isWaitingForRating) return;
-
     this.showObservation = true;
     this.observation = '';
   }
@@ -265,21 +267,12 @@ export class LbotChat implements OnInit, OnDestroy {
     ];
     this.messageInput = '';
     this.isLoading = false;
-    this.isWaitingForRating = false;
-    this.countdown = 5;
-    this.showRating = false;
-    this.selectedRating = 0;
-    this.hoverRating = 0;
-    this.currentMessageId = '';
     this.showObservation = false;
     this.observation = '';
     this.ratings = [];
     this.chatId = '';
-
-    // Limpar interval se existir
-    if (this.countdownInterval) {
-      clearInterval(this.countdownInterval);
-    }
+    this.showingReactionsFor = null;
+    this.clearLongPress();
 
     // Inicializar um novo chat
     this.initializeChat();
@@ -288,7 +281,7 @@ export class LbotChat implements OnInit, OnDestroy {
   }
 
   onKeyPress(event: KeyboardEvent): void {
-    if (event.key === 'Enter' && !this.isWaitingForRating) {
+    if (event.key === 'Enter') {
       this.sendMessage();
     }
   }
@@ -303,9 +296,7 @@ export class LbotChat implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Limpar interval se o componente for destruído
-    if (this.countdownInterval) {
-      clearInterval(this.countdownInterval);
-    }
+    // Limpar timer de long press se o componente for destruído
+    this.clearLongPress();
   }
 }

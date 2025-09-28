@@ -2,62 +2,83 @@
 <div class="chat-wrapper">
   <div class="chat-header">
     <h2>🤖 LBot Translator</h2>
-    <button class="end-chat-btn" (click)="showObservationPopup()" title="Finalizar Chat" [disabled]="isWaitingForRating">
+    <button class="end-chat-btn" (click)="showObservationPopup()" title="Finalizar Chat">
       ✕
     </button>
   </div>
 
   <div class="chat-container">
-  <div class="chat-messages">
+  <div class="chat-messages" (click)="hideReactions()">
     <div *ngFor="let message of messages" class="message" [ngClass]="message.type">
-      {{ message.text }}
+      <!-- Container da mensagem do bot com long press -->
+      <div *ngIf="message.type === 'bot' && message.messageId && !message.rated" 
+           class="bot-message-container"
+           (mousedown)="startLongPress(message.messageId!, $event)"
+           (mouseup)="endLongPress($event)"
+           (mouseleave)="endLongPress($event)"
+           (touchstart)="startLongPress(message.messageId!, $event)"
+           (touchend)="endLongPress($event)"
+           (touchcancel)="endLongPress($event)"
+           (click)="$event.stopPropagation()">
+        
+        <div class="message-content">
+          {{ message.text }}
+        </div>
+        
+        <!-- Hint visual para indicar que pode avaliar -->
+        <div class="evaluation-hint">
+          <span class="hint-text">Segure para avaliar</span>
+          <span class="hint-icon">👆</span>
+        </div>
+        
+        <!-- Botões de reação (mostrados apenas durante long press) -->
+        <div *ngIf="shouldShowReactions(message.messageId!)" class="reaction-buttons">
+          <button class="reaction-btn" (click)="quickRate(message.messageId!, 1, $event)" title="Muito ruim">
+            😞
+          </button>
+          <button class="reaction-btn" (click)="quickRate(message.messageId!, 2, $event)" title="Ruim">
+            😐
+          </button>
+          <button class="reaction-btn" (click)="quickRate(message.messageId!, 3, $event)" title="Ok">
+            😊
+          </button>
+          <button class="reaction-btn" (click)="quickRate(message.messageId!, 4, $event)" title="Bom">
+            😄
+          </button>
+          <button class="reaction-btn" (click)="quickRate(message.messageId!, 5, $event)" title="Excelente">
+            🤩
+          </button>
+        </div>
+      </div>
+      
+      <!-- Mensagens sem long press (user, error, bot já avaliado) -->
+      <div *ngIf="!(message.type === 'bot' && message.messageId && !message.rated)" class="message-content">
+        {{ message.text }}
+      </div>
+      
+      <!-- Mostrar reação selecionada -->
+      <div *ngIf="message.type === 'bot' && message.messageId && message.rated" class="selected-rating">
+        <span class="rating-emoji">{{ getRatingEmoji(message.rating!) }}</span>
+        <span class="rating-text">Avaliado</span>
+      </div>
     </div>
 
     <div *ngIf="isLoading" class="message typing">
       Processando...
     </div>
 
-    <div *ngIf="isWaitingForRating" class="message waiting">
-      Aguarde {{ countdown }}s para avaliar a resposta...
-    </div>
   </div>
 
   <div class="chat-input">
     <input type="text" [(ngModel)]="messageInput" (keypress)="onKeyPress($event)" placeholder="Digite seu comando..."
-      autocomplete="off" [disabled]="isLoading || isWaitingForRating">
-    <button (click)="sendMessage()" [disabled]="isLoading || !messageInput.trim() || isWaitingForRating">
+      autocomplete="off" [disabled]="isLoading">
+    <button (click)="sendMessage()" [disabled]="isLoading || !messageInput.trim()">
       Enviar
     </button>
   </div>
   </div>
 </div>
 
-<!-- Popup de Avaliação (após cada mensagem) -->
-<div *ngIf="showRating" class="rating-overlay" (click)="closeRatingPopup()">
-  <div class="rating-popup" (click)="$event.stopPropagation()">
-    <h3>Avalie esta resposta</h3>
-    <p>Como você avalia a qualidade desta resposta?</p>
-
-    <div class="stars-container">
-      <span *ngFor="let star of [1,2,3,4,5]; let i = index"
-            class="star"
-            [class.filled]="i < selectedRating"
-            [class.hover]="i < hoverRating"
-            (click)="selectRating(i + 1)"
-            (mouseenter)="hoverRating = i + 1"
-            (mouseleave)="hoverRating = 0">
-        ★
-      </span>
-    </div>
-
-    <div class="rating-buttons">
-      <button class="cancel-btn" (click)="closeRatingPopup()">Pular</button>
-      <button class="submit-btn" (click)="submitRating()" [disabled]="selectedRating === 0">
-        Avaliar
-      </button>
-    </div>
-  </div>
-</div>
 
 <!-- Popup de Observação (ao finalizar chat) -->
 <div *ngIf="showObservation" class="rating-overlay" (click)="closeObservationPopup()">
