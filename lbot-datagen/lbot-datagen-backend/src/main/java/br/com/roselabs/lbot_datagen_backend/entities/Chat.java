@@ -36,6 +36,10 @@ public class Chat {
     @Builder.Default
     private String observation = null;
 
+    @Column(name = "version", nullable = false)
+    @Builder.Default
+    private Integer version = 1;
+
     public void addMessage(Message message) {
         messages.add(message);
         message.setChat(this);
