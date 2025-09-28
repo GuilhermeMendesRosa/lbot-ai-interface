@@ -38,7 +38,7 @@ export interface EvaluateResponse {
   providedIn: 'root'
 })
 export class MessagesService {
-  private baseUrl = 'http://localhost:8080';
+  private baseUrl = 'https://lbot-ai-interface-production.up.railway.app';
 
   constructor(private http: HttpClient) { }
 
