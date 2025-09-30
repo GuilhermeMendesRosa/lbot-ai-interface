@@ -24,7 +24,7 @@ interface Message {
 })
 export class LbotChat implements OnInit, OnDestroy {
   messages: Message[] = [
-    { text: 'Olá! Digite um comando em português e eu traduzo para LBot.', type: 'bot' }
+    { text: 'Olá! Digite um comando em português e eu traduzo para LBML.', type: 'bot' }
   ];
   messageInput = '';
   isLoading = false;
@@ -263,7 +263,7 @@ export class LbotChat implements OnInit, OnDestroy {
   clearChat(): void {
     // Limpar todas as variáveis do chat
     this.messages = [
-      { text: 'Olá! Digite um comando em português e eu traduzo para LBot.', type: 'bot' }
+      { text: 'Olá! Digite um comando em português e eu traduzo para LBML.', type: 'bot' }
     ];
     this.messageInput = '';
     this.isLoading = false;
