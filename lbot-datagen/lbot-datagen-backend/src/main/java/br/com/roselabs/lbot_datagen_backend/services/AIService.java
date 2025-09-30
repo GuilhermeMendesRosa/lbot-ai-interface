@@ -61,10 +61,10 @@ public class AIService {
 //                }
 //            }
 
-//            String normalizedPrompt = normalizePromptImCm(prompt);
-//            log.info("Prompt normalizado: {}", normalizedPrompt);
+            String normalizedPrompt = normalizePromptImCm(prompt);
+            log.info("Prompt normalizado: {}", normalizedPrompt);
 
-            String lbmlCommand = convertToLML(prompt);
+            String lbmlCommand = convertToLML(normalizedPrompt);
             log.info("Comando LBML gerado: {}", lbmlCommand);
 
 //            boolean success = sendCommandToRobot(lbmlCommand);

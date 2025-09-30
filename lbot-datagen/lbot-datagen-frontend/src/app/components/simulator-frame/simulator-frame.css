@@ -5,6 +5,8 @@
   overflow: hidden;
   background: #e8f0e8;
   border: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
 }
 
 .sim-iframe {
@@ -12,6 +14,7 @@
   height: 100%;
   border: 0;
   display: block;
+  flex: 1;
 }
 
 
