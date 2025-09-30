@@ -10,6 +10,10 @@ html, body {
   padding: 0;
   height: 100%;
   width: 100%;
+  /* Propriedades específicas para iOS */
+  -webkit-text-size-adjust: 100%;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 app-root {
