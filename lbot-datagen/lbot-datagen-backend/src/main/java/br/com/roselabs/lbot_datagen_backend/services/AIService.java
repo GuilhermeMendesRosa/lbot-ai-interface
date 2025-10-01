@@ -29,7 +29,7 @@ public class AIService {
 
             OpenAiChatOptions options = OpenAiChatOptions.builder()
                     .model("gpt-4.1-mini")
-                    .temperature(1D)
+                    .temperature(0D)
                     .build();
 
             Prompt chatPrompt = new Prompt(systemPrompt + prompt, options);
@@ -67,7 +67,7 @@ public class AIService {
 
             OpenAiChatOptions options = OpenAiChatOptions.builder()
                     .model("gpt-4.1-mini")
-                    .temperature(1D)
+                    .temperature(0D)
                     .build();
 
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
