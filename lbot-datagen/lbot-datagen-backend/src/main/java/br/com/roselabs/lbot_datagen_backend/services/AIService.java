@@ -27,9 +27,9 @@ public class AIService {
         try {
             String systemPrompt = loadPromptFromFile("static/prompts/normalize-prompts-in-cm.txt");
 
-            // Usando GPT-5 Nano para normalização
             OpenAiChatOptions options = OpenAiChatOptions.builder()
-                    .model("gpt-5-nano")
+                    .model("gpt-4.1-mini")
+                    .temperature(1D)
                     .build();
 
             Prompt chatPrompt = new Prompt(systemPrompt + prompt, options);
@@ -65,9 +65,9 @@ public class AIService {
             String systemPrompt = loadPromptFromFile("static/prompts/convert-to-lml.txt");
             String currentPrompt = prompt;
 
-            // Usando GPT-5 Mini para conversão LML
             OpenAiChatOptions options = OpenAiChatOptions.builder()
-                    .model("gpt-5-mini")
+                    .model("gpt-4.1-mini")
+                    .temperature(1D)
                     .build();
 
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
