@@ -3,6 +3,8 @@ package br.com.roselabs.lbot_datagen_backend.services;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
@@ -15,7 +17,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class AIService {
 
-    private final OpenAiChatModel openAiChatModel;
+    private final OpenAiChatModel chatModel;
 
     private static final String LBML_REGEX = "^(D\\d+[FBLR];|R\\d+[LR];)+$";
     private static final Pattern LBML_PATTERN = Pattern.compile(LBML_REGEX);
@@ -24,7 +26,14 @@ public class AIService {
     public String normalizePromptImCm(String prompt) {
         try {
             String systemPrompt = loadPromptFromFile("static/prompts/normalize-prompts-in-cm.txt");
-            return openAiChatModel.call(systemPrompt + prompt);
+
+            // Usando GPT-5 Nano para normalização
+            OpenAiChatOptions options = OpenAiChatOptions.builder()
+                    .model("gpt-5-nano")
+                    .build();
+
+            Prompt chatPrompt = new Prompt(systemPrompt + prompt, options);
+            return chatModel.call(chatPrompt).getResult().getOutput().getText();
         } catch (IOException e) {
             throw new RuntimeException("Erro ao carregar arquivo de prompt", e);
         }
@@ -56,9 +65,16 @@ public class AIService {
             String systemPrompt = loadPromptFromFile("static/prompts/convert-to-lml.txt");
             String currentPrompt = prompt;
 
+            // Usando GPT-5 Mini para conversão LML
+            OpenAiChatOptions options = OpenAiChatOptions.builder()
+                    .model("gpt-5-mini")
+                    .build();
+
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
                 String fullPrompt = systemPrompt + currentPrompt;
-                String result = openAiChatModel.call(fullPrompt);
+
+                Prompt chatPrompt = new Prompt(fullPrompt, options);
+                String result = chatModel.call(chatPrompt).getResult().getOutput().getText();
                 String cleanResult = result.trim().replaceAll("\\s+", "");
 
                 if (isValidLBML(cleanResult)) {
