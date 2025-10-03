@@ -29,7 +29,7 @@ public class AIService {
 
             OpenAiChatOptions options = OpenAiChatOptions.builder()
                     .model("gpt-5-nano")
-                    .temperature(0D)
+                    .temperature(1D)
                     .reasoningEffort("disabled")
                     .build();
 
@@ -68,7 +68,7 @@ public class AIService {
 
             OpenAiChatOptions options = OpenAiChatOptions.builder()
                     .model("gpt-5-mini")
-                    .temperature(0D)
+                    .temperature(1D)
                     .reasoningEffort("disabled")
                     .build();
 
