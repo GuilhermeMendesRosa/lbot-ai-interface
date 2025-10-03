@@ -30,7 +30,7 @@ public class AIService {
             OpenAiChatOptions options = OpenAiChatOptions.builder()
                     .model("gpt-5-nano")
                     .temperature(1D)
-                    .reasoningEffort("disabled")
+                    .reasoningEffort("low")
                     .build();
 
             Prompt chatPrompt = new Prompt(systemPrompt + prompt, options);
@@ -69,7 +69,7 @@ public class AIService {
             OpenAiChatOptions options = OpenAiChatOptions.builder()
                     .model("gpt-5-mini")
                     .temperature(1D)
-                    .reasoningEffort("disabled")
+                    .reasoningEffort("low")
                     .build();
 
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
