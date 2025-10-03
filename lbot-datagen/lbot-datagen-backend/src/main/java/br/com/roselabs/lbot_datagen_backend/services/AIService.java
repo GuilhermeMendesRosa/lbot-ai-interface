@@ -28,8 +28,9 @@ public class AIService {
             String systemPrompt = loadPromptFromFile("static/prompts/normalize-prompts-in-cm.txt");
 
             OpenAiChatOptions options = OpenAiChatOptions.builder()
-                    .model("gpt-4.1-mini")
+                    .model("gpt-5-nano")
                     .temperature(0D)
+                    .reasoningEffort("disabled")
                     .build();
 
             Prompt chatPrompt = new Prompt(systemPrompt + prompt, options);
@@ -66,8 +67,9 @@ public class AIService {
             String currentPrompt = prompt;
 
             OpenAiChatOptions options = OpenAiChatOptions.builder()
-                    .model("gpt-4.1-mini")
+                    .model("gpt-5-mini")
                     .temperature(0D)
+                    .reasoningEffort("disabled")
                     .build();
 
             for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
