@@ -188,7 +188,7 @@ class Labyrinth {
     const spawnCenter = this.cellCenter(0, 0);
     this.spawnPosition = new CANNON.Vec3(
       spawnCenter.x,
-      0.35,
+      1.0, // Aumentado para garantir que não está no chão
       this.floorStart + 0.8
     );
 
@@ -516,9 +516,9 @@ class Robot {
     this.material = material;
     this.spawnPosition = spawnPosition.clone();
     this.spawnQuaternion = new CANNON.Quaternion();
-    this.moveSpeed = 2.2; // metros por segundo
-    this.rotationSpeed = 110; // graus por segundo
-    this.distanceTolerance = 0.08;
+    this.moveSpeed = 8.0; // metros por segundo (aumentado para movimento mais rápido)
+    this.rotationSpeed = 180; // graus por segundo
+    this.distanceTolerance = 0.2; // tolerância maior para evitar travamento
     this.pendingCollision = false;
 
     const { group, wheels } = this.buildMesh();
@@ -531,10 +531,12 @@ class Robot {
       mass: 18,
       material,
       position: this.spawnPosition.clone(),
+      type: CANNON.Body.DYNAMIC, // Explicitamente dinâmico
     });
     this.body.addShape(new CANNON.Box(halfExtents));
-    this.body.angularDamping = 0.6;
-    this.body.linearDamping = 0.35;
+    this.body.angularDamping = 0.2; // Menos damping
+    this.body.linearDamping = 0.05; // Bem menos damping
+    this.body.allowSleep = false; // Impede o corpo de "dormir"
     this.body.userData = { type: 'robot' };
     this.world.addBody(this.body);
 
@@ -746,7 +748,9 @@ class Robot {
   }
 
   moveDistance(distance) {
+    console.log(`moveDistance chamado: ${distance}`);
     if (this.movementTask || this.rotationTask) {
+      console.log('Robô ocupado, rejeitando movimento');
       return Promise.reject(new Error('Robot busy'));
     }
     const direction = this.getForwardVector();
@@ -756,14 +760,26 @@ class Robot {
     const start = this.body.position.clone();
     const targetDistance = Math.abs(distance);
 
+    console.log(`Iniciando movimento: start=${start.x},${start.y},${start.z}, direction=${direction.x},${direction.y},${direction.z}, distance=${targetDistance}`);
+
     return new Promise((resolve) => {
       this.movementTask = {
         start,
         direction,
         distance: targetDistance,
         resolve,
+        startTime: performance.now(),
       };
       this.pendingCollision = false;
+      
+      // Timeout de segurança para evitar travamento
+      setTimeout(() => {
+        if (this.movementTask) {
+          console.log('Movimento interrompido por timeout');
+          this.movementTask.resolve({ blocked: false, timeout: true });
+          this.movementTask = null;
+        }
+      }, Math.max(targetDistance / this.moveSpeed * 1000 * 2, 5000)); // 2x o tempo esperado ou mínimo 5s
     });
   }
 
@@ -813,12 +829,20 @@ class Robot {
     }
 
     if (this.movementTask) {
+      // Método alternativo: usar impulso ao invés de velocidade direta
+      const currentVel = new CANNON.Vec3(this.body.velocity.x, 0, this.body.velocity.z);
       const desiredVelocity = this.movementTask.direction.scale(this.moveSpeed);
-      this.body.velocity.x = desiredVelocity.x;
-      this.body.velocity.z = desiredVelocity.z;
+      const deltaVel = desiredVelocity.vsub(currentVel);
+      
+      // Aplicar impulso para atingir a velocidade desejada
+      const impulse = deltaVel.scale(this.body.mass * 0.1); // Fator de controle
+      this.body.applyImpulse(impulse);
+      
+      console.log(`Aplicando impulso: x=${impulse.x.toFixed(2)}, z=${impulse.z.toFixed(2)}, vel atual: x=${this.body.velocity.x.toFixed(2)}, z=${this.body.velocity.z.toFixed(2)}`);
     } else {
-      this.body.velocity.x *= 0.95;
-      this.body.velocity.z *= 0.95;
+      // Aplicar damping apenas no plano horizontal
+      this.body.velocity.x *= 0.9;
+      this.body.velocity.z *= 0.9;
     }
   }
 
@@ -828,6 +852,11 @@ class Robot {
       const projected = displacement.dot(this.movementTask.direction);
       const completed = projected >= this.movementTask.distance - this.distanceTolerance;
       const blocked = this.pendingCollision && projected < this.movementTask.distance * 0.8;
+
+      // Log contínuo para debug
+      if (Math.random() < 0.02) { // ~1/50 chance
+        console.log(`Movimento: pos=${this.body.position.x.toFixed(2)},${this.body.position.z.toFixed(2)}, projected=${projected.toFixed(2)}/${this.movementTask.distance}, tolerance=${this.distanceTolerance}, vel=${this.body.velocity.x.toFixed(2)},${this.body.velocity.z.toFixed(2)}`);
+      }
 
       if (completed || blocked) {
         const clampedDistance = Math.min(
@@ -840,6 +869,7 @@ class Robot {
         this.body.position.set(finalPos.x, this.body.position.y, finalPos.z);
         this.body.velocity.x = 0;
         this.body.velocity.z = 0;
+        console.log(`Movimento concluído: projected=${projected}, completed=${completed}, blocked=${blocked}, final pos=${finalPos.x},${finalPos.y},${finalPos.z}`);
         this.movementTask.resolve({ blocked });
         this.movementTask = null;
         this.pendingCollision = false;
@@ -1128,14 +1158,25 @@ function handleResize() {
 }
 
 function initialize() {
+  console.log('Inicializando simulador...');
   setupScene();
+  console.log('Cena configurada');
+  
   ({ world, materials } = initPhysics());
+  console.log('Física inicializada');
+  
   labyrinth = new Labyrinth(scene, world, materials);
+  console.log('Labirinto criado, spawn position:', labyrinth.spawnPosition);
+  
   robot = new Robot(scene, world, materials.robot, labyrinth.spawnPosition);
+  console.log('Robô criado na posição:', robot.body.position);
+  
   cameraRig = new FollowCamera(camera, robot);
   cameraRig.snap();
+  console.log('Câmera configurada');
 
   animateLoop();
+  console.log('Loop de animação iniciado - simulador pronto!');
 
   window.addEventListener('resize', handleResize);
   window.addEventListener('keydown', (event) => {
@@ -1146,6 +1187,60 @@ function initialize() {
 }
 
 initialize();
+
+// Funções globais para teste direto no browser
+window.testCommand = function() {
+  const input = document.getElementById('testCommand').value;
+  console.log('Executando comando:', input);
+  executeCommandSequenceFromString(input)
+    .then(() => console.log('Comando executado com sucesso'))
+    .catch(err => console.error('Erro ao executar comando:', err));
+};
+
+window.resetCommand = function() {
+  console.log('Resetando robô...');
+  resetRobot();
+};
+
+window.debugInfo = function() {
+  console.log('=== DEBUG INFO ===');
+  console.log('Robot exists:', !!robot);
+  if (robot) {
+    console.log('Robot position:', robot.body.position);
+    console.log('Robot visual position:', robot.group.position);
+    console.log('Robot velocity:', robot.body.velocity);
+    console.log('Robot busy:', !!robot.movementTask || !!robot.rotationTask);
+  }
+  console.log('Labyrinth exists:', !!labyrinth);
+  if (labyrinth) {
+    console.log('Spawn position:', labyrinth.spawnPosition);
+  }
+  console.log('Scene children count:', scene.children.length);
+  console.log('Camera position:', camera.position);
+};
+
+window.forceMove = function() {
+  if (!robot) return;
+  console.log('Forçando movimento direto...');
+  const oldPos = {x: robot.body.position.x, z: robot.body.position.z};
+  robot.body.position.x += 2;
+  robot.body.position.z += 2;
+  console.log('Posição antes:', oldPos);
+  console.log('Nova posição:', robot.body.position);
+  
+  // Verificar se o corpo está travado
+  console.log('Massa:', robot.body.mass);
+  console.log('Tipo:', robot.body.type); // 0=dynamic, 1=kinematic, 2=static
+  console.log('IsSleeping:', robot.body.sleepState);
+};
+
+window.testForce = function() {
+  if (!robot) return;
+  console.log('Testando com força ao invés de velocidade...');
+  const force = new CANNON.Vec3(0, 0, 500); // Força para frente
+  robot.body.applyForce(force);
+  console.log('Força aplicada:', force);
+};
 
 window.addEventListener('message', (event) => {
   const data = event.data || {};
