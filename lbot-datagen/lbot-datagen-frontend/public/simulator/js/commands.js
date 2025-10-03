@@ -4,14 +4,20 @@ import { setIndicator, showError, updateCommandDisplay } from './ui.js';
 let executing = false;
 
 export async function executeCommandSequenceFromString(input, robot) {
+  console.log('Input recebido:', input);
+  
   const commands = (input || '')
     .split(';')
     .map((cmd) => cmd.trim())
     .filter(Boolean);
 
+  console.log('Comandos divididos:', commands);
+
   const parsedCommands = [];
   for (const cmd of commands) {
+    console.log('Processando comando:', cmd);
     const parsed = parseLBMLCommand(cmd);
+    console.log('Comando parseado:', parsed);
     if (!parsed) {
       showError(`Comando inválido: ${cmd}`);
       return;
@@ -30,7 +36,9 @@ export async function executeCommandSequenceFromString(input, robot) {
       
       try {
         if (cmd.type === 'D') {
-          await robot.moveDistance(cmd.value);
+          // Converter centímetros para metros (unidade base do simulador)
+          const distanceInMeters = cmd.value / 100;
+          await robot.moveDistance(distanceInMeters, cmd.direction);
         } else if (cmd.type === 'R') {
           const angle = cmd.direction === 'L' ? -cmd.value : cmd.value;
           await robot.rotateDegrees(angle);

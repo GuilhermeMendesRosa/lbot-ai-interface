@@ -139,6 +139,26 @@ window.testForce = function() {
   console.log('Força aplicada:', force);
 };
 
+window.testVelocity = function() {
+  if (!robot) return;
+  console.log('Testando velocidade direta...');
+  console.log('Posição antes:', robot.body.position);
+  console.log('Rotação atual:', robot.getYawDegrees(), 'graus');
+  
+  // Aplicar velocidade diretamente para frente
+  const forward = robot.getForwardVector();
+  console.log('Vetor forward:', forward);
+  
+  robot.body.velocity.copy(forward.scale(2)); // 2 m/s para frente
+  console.log('Velocidade aplicada:', robot.body.velocity);
+  
+  // Parar após 1 segundo
+  setTimeout(() => {
+    robot.body.velocity.set(0, 0, 0);
+    console.log('Velocidade zerada. Posição final:', robot.body.position);
+  }, 1000);
+};
+
 // Message handler para comunicação com o parent frame
 window.addEventListener('message', (event) => {
   const data = event.data || {};

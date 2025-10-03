@@ -9,8 +9,8 @@ export class Robot {
     this.material = material;
     this.spawnPosition = spawnPosition.clone();
     this.spawnQuaternion = new CANNON.Quaternion();
-    this.moveSpeed = 8.0; // metros por segundo
-    this.rotationSpeed = 180; // graus por segundo
+    this.moveSpeed = 1.0; // metros por segundo (mais realista)
+    this.rotationSpeed = 90; // graus por segundo (mais suave)
     this.distanceTolerance = 0.2;
     this.pendingCollision = false;
 
@@ -194,20 +194,64 @@ export class Robot {
   }
 
   getForwardVector() {
+    // No Three.js/Cannon.js, Z positivo geralmente é "para frente"
     const forward = new CANNON.Vec3(0, 0, 1);
     this.body.quaternion.vmult(forward, forward);
+    console.log('Vetor forward calculado:', forward);
     return forward;
   }
 
-  moveDistance(distance) {
+  getLeftVector() {
+    // X negativo é esquerda
+    const left = new CANNON.Vec3(-1, 0, 0);
+    this.body.quaternion.vmult(left, left);
+    console.log('Vetor left calculado:', left);
+    return left;
+  }
+
+  getRightVector() {
+    // X positivo é direita
+    const right = new CANNON.Vec3(1, 0, 0);
+    this.body.quaternion.vmult(right, right);
+    console.log('Vetor right calculado:', right);
+    return right;
+  }
+
+  moveDistance(distance, direction = 'F') {
     if (this.movementTask) return Promise.reject(new Error('Já está em movimento'));
     
     const startPosition = this.body.position.clone();
-    const forward = this.getForwardVector();
-    const targetPosition = startPosition.vadd(forward.scale(distance));
+    let moveVector;
+    
+    console.log(`Iniciando movimento: ${distance}m na direção ${direction}`);
+    console.log('Posição inicial:', startPosition);
+    console.log('Rotação atual:', this.getYawDegrees(), 'graus');
+    
+    // Calcular vetor de movimento baseado na direção
+    switch (direction) {
+      case 'F': // Frente
+        moveVector = this.getForwardVector();
+        break;
+      case 'B': // Trás
+        moveVector = this.getForwardVector().scale(-1);
+        break;
+      case 'L': // Esquerda (relativo ao robô)
+        moveVector = this.getLeftVector();
+        break;
+      case 'R': // Direita (relativo ao robô)
+        moveVector = this.getRightVector();
+        break;
+      default:
+        return Promise.reject(new Error(`Direção inválida: ${direction}`));
+    }
+    
+    console.log('Vetor de movimento:', moveVector);
+    const targetPosition = startPosition.vadd(moveVector.scale(distance));
+    console.log('Posição alvo:', targetPosition);
     
     const startTime = performance.now();
     const duration = Math.abs(distance) / this.moveSpeed * 1000;
+    console.log(`Duração do movimento: ${duration}ms para ${distance}m a ${this.moveSpeed}m/s`);
     
     return new Promise((resolve, reject) => {
       this.movementTask = {
@@ -215,6 +259,8 @@ export class Robot {
         startPosition,
         targetPosition,
         distance,
+        direction,
+        moveVector: moveVector.clone(), // Clonar para evitar mutação
         startTime,
         duration,
         resolve,
@@ -252,19 +298,30 @@ export class Robot {
       const task = this.movementTask;
       const elapsed = performance.now() - task.startTime;
       const progress = Math.min(elapsed / task.duration, 1);
-      const easedProgress = easeInOutCubic(progress);
       
-      const currentPos = new CANNON.Vec3().copy(task.startPosition);
-      const direction = new CANNON.Vec3().copy(task.targetPosition).vsub(task.startPosition);
-      direction.scale(easedProgress);
-      currentPos.vadd(direction, currentPos);
+      // Usar interpolação direta de posição ao invés de velocidade
+      const currentPosition = new CANNON.Vec3().copy(task.startPosition);
+      const targetOffset = task.moveVector.scale(task.distance * progress);
+      currentPosition.vadd(targetOffset, currentPosition);
       
-      const speed = task.distance / (task.duration / 1000);
-      const forward = this.getForwardVector();
-      this.body.velocity.copy(forward.scale(speed * (1 - progress + 0.1)));
+      // Aplicar a posição diretamente
+      this.body.position.copy(currentPosition);
+      
+      // Zerar velocidade para evitar movimentos indesejados
+      this.body.velocity.set(0, 0, 0);
+      
+      // Log apenas nos primeiros frames para evitar spam
+      if (elapsed < 100) {
+        console.log(`Progresso: ${(progress * 100).toFixed(1)}%`);
+        console.log('Posição calculada:', currentPosition);
+        console.log('Offset aplicado:', targetOffset);
+      }
       
       if (progress >= 1 || this.pendingCollision) {
-        this.body.velocity.set(0, 0, 0);
+        console.log('Movimento finalizado. Posição final:', this.body.position);
+        const actualDistance = this.body.position.distanceTo(task.startPosition);
+        console.log(`Distância real percorrida: ${actualDistance.toFixed(3)}m (esperado: ${task.distance}m)`);
+        
         if (this.pendingCollision) {
           task.reject(new Error('Colisão detectada'));
           this.pendingCollision = false;
