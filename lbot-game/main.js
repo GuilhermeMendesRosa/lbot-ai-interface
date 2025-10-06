@@ -10,7 +10,7 @@ let ground, groundBody;
 let obstacles = [];
 let startPoint, endPoint;
 let isExecuting = false;
-let initialRobotPosition = { x: -40, y: 5, z: 0 };
+let initialRobotPosition = { x: -60, y: 5, z: 0 };
 let initialRobotRotation = 0;
 
 // Configurações
@@ -54,15 +54,16 @@ function setupThreeJS() {
     scene = new THREE.Scene();
     scene.fog = new THREE.Fog(0x87CEEB, 100, 500);
 
-    // Configurar câmera
+    // Configurar câmera (terceira pessoa)
     camera = new THREE.PerspectiveCamera(
         75,
         window.innerWidth / window.innerHeight,
         0.1,
         1000
     );
-    camera.position.set(0, 80, 100);
-    camera.lookAt(0, 0, 0);
+    // Posição inicial será atualizada no loop de animação
+    camera.position.set(initialRobotPosition.x, initialRobotPosition.y + 15, initialRobotPosition.z + 25);
+    camera.lookAt(initialRobotPosition.x, initialRobotPosition.y, initialRobotPosition.z);
 
     // Configurar renderer
     renderer = new THREE.WebGLRenderer({
@@ -80,10 +81,10 @@ function setupThreeJS() {
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
     directionalLight.position.set(50, 100, 50);
     directionalLight.castShadow = true;
-    directionalLight.shadow.camera.left = -100;
-    directionalLight.shadow.camera.right = 100;
-    directionalLight.shadow.camera.top = 100;
-    directionalLight.shadow.camera.bottom = -100;
+    directionalLight.shadow.camera.left = -150;
+    directionalLight.shadow.camera.right = 150;
+    directionalLight.shadow.camera.top = 150;
+    directionalLight.shadow.camera.bottom = -150;
     scene.add(directionalLight);
 
     // Ajustar ao redimensionar
@@ -112,7 +113,7 @@ function setupPhysics() {
 
 function createEnvironment() {
     // Criar chão com textura de grama
-    const groundGeometry = new THREE.PlaneGeometry(200, 200);
+    const groundGeometry = new THREE.PlaneGeometry(300, 300);
     const groundTexture = createGrassTexture();
     const groundMaterial = new THREE.MeshLambertMaterial({ 
         map: groundTexture,
@@ -239,22 +240,52 @@ function createRobot() {
 
 function createArena() {
     // Paredes da arena
-    createWall(-50, 0, 0, 2, 20, 100, 0x8B4513); // Parede esquerda
-    createWall(50, 0, 0, 2, 20, 100, 0x8B4513);  // Parede direita
-    createWall(0, 0, -50, 100, 20, 2, 0x8B4513); // Parede traseira
-    createWall(0, 0, 50, 100, 20, 2, 0x8B4513);  // Parede frontal
+    createWall(-75, 0, 0, 2, 20, 150, 0x8B4513); // Parede esquerda
+    createWall(75, 0, 0, 2, 20, 150, 0x8B4513);  // Parede direita
+    createWall(0, 0, -75, 150, 20, 2, 0x8B4513); // Parede traseira
+    createWall(0, 0, 75, 150, 20, 2, 0x8B4513);  // Parede frontal
 
-    // Obstáculos
-    createObstacle(-20, 5, 0, 8, 10, 8, 0xFF9800);  // Obstáculo 1
-    createObstacle(10, 5, -20, 10, 10, 10, 0x9C27B0); // Obstáculo 2
-    createObstacle(20, 3, 20, 6, 6, 6, 0x00BCD4);    // Obstáculo 3
+    // Obstáculos de madeira
+    createWoodenObstacle(-30, 5, 0, 8, 10, 8);     // Caixa de madeira 1
+    createWoodenObstacle(15, 5, -30, 10, 10, 10);  // Caixa de madeira 2
+    createWoodenObstacle(35, 3, 35, 6, 6, 6);      // Caixa de madeira 3
+    createWoodenObstacle(-50, 7, -30, 12, 14, 8);  // Caixa de madeira grande
+    createWoodenObstacle(50, 4, 20, 8, 8, 12);     // Caixa de madeira 4
 
-    // Rampas
-    createRamp(0, 2, 0, 20, 0.5, 15, Math.PI / 6, 0x4CAF50);
-    createRamp(-25, 2, 25, 15, 0.5, 10, -Math.PI / 8, 0xFFC107);
+    // Pilares de madeira
+    createWoodenPillar(-20, 15, -50, 4, 30, 4);
+    createWoodenPillar(25, 15, 50, 4, 30, 4);
+    createWoodenPillar(-60, 15, 40, 4, 30, 4);
+    createWoodenPillar(60, 15, -40, 4, 30, 4);
 
-    // Plataforma elevada
-    createPlatform(30, 8, -10, 15, 1, 15, 0x795548);
+    // Barris de madeira
+    createWoodenBarrel(-40, 4, 30, 4, 8);
+    createWoodenBarrel(40, 4, -35, 4, 8);
+    createWoodenBarrel(0, 4, -60, 4, 8);
+    createWoodenBarrel(-15, 4, 55, 4, 8);
+
+    // Cercas de madeira
+    createWoodenFence(-10, 0, -15, 20, 6, 1);
+    createWoodenFence(30, 0, 10, 1, 6, 20);
+    createWoodenFence(-35, 0, 50, 25, 6, 1);
+
+    // Rampas de madeira
+    createWoodenRamp(0, 2, 0, 20, 0.5, 15, Math.PI / 6);
+    createWoodenRamp(-40, 2, 40, 15, 0.5, 10, -Math.PI / 8);
+    createWoodenRamp(45, 2, -20, 18, 0.5, 12, Math.PI / 10);
+
+    // Plataformas de madeira
+    createWoodenPlatform(45, 8, -50, 15, 1, 15);
+    createWoodenPlatform(-45, 6, -20, 20, 1, 12);
+    createWoodenPlatform(20, 10, 60, 12, 1, 18);
+
+    // Torres de madeira
+    createWoodenTower(-60, 0, -60, 8, 25, 8);
+    createWoodenTower(60, 0, 60, 8, 25, 8);
+
+    // Pontes de madeira
+    createWoodenBridge(0, 12, -40, 40, 2, 8);
+    createWoodenBridge(-30, 8, 0, 25, 2, 6);
 }
 
 // Criar parede
@@ -345,6 +376,324 @@ function createPlatform(x, y, z, width, height, depth, color) {
 }
 
 // ==========================================
+// ELEMENTOS DE MADEIRA
+// ==========================================
+
+// Criar textura de madeira procedural
+function createWoodTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    // Base marrom
+    ctx.fillStyle = '#8B4513';
+    ctx.fillRect(0, 0, 256, 256);
+
+    // Adicionar textura de madeira
+    for (let i = 0; i < 50; i++) {
+        const y = Math.random() * 256;
+        const darkness = 0.2 + Math.random() * 0.3;
+        ctx.fillStyle = `rgba(0, 0, 0, ${darkness})`;
+        ctx.fillRect(0, y, 256, 2 + Math.random() * 3);
+    }
+
+    // Adicionar nós na madeira
+    for (let i = 0; i < 10; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        const radius = 5 + Math.random() * 10;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    return texture;
+}
+
+// Material de madeira
+function getWoodMaterial() {
+    const woodTexture = createWoodTexture();
+    return new THREE.MeshPhongMaterial({
+        map: woodTexture,
+        color: 0xCD853F,
+        shininess: 10,
+        specular: 0x222222
+    });
+}
+
+// Obstáculo de madeira
+function createWoodenObstacle(x, y, z, width, height, depth) {
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = getWoodMaterial();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+    obstacles.push(mesh);
+
+    // Física
+    const shape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    });
+    body.position.set(x, y, z);
+    world.add(body);
+}
+
+// Pilar de madeira
+function createWoodenPillar(x, y, z, width, height, depth) {
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = getWoodMaterial();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+
+    // Física
+    const shape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    });
+    body.position.set(x, y, z);
+    world.add(body);
+}
+
+// Barril de madeira
+function createWoodenBarrel(x, y, z, radius, height) {
+    const geometry = new THREE.CylinderGeometry(radius, radius * 0.8, height, 16);
+    const material = getWoodMaterial();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+
+    // Adicionar aros metálicos
+    for (let i = 0; i < 3; i++) {
+        const ringGeometry = new THREE.TorusGeometry(radius + 0.1, 0.1, 8, 16);
+        const ringMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
+        const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+        ring.position.set(x, y + (i - 1) * height * 0.3, z);
+        ring.rotation.x = Math.PI / 2;
+        scene.add(ring);
+    }
+
+    // Física
+    const shape = new CANNON.Cylinder(radius * 0.8, radius, height, 8);
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    });
+    body.position.set(x, y, z);
+    world.add(body);
+}
+
+// Cerca de madeira
+function createWoodenFence(x, y, z, width, height, depth) {
+    // Base da cerca
+    const baseGeometry = new THREE.BoxGeometry(width, height * 0.2, depth);
+    const baseMaterial = getWoodMaterial();
+    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+    base.position.set(x, y + height * 0.1, z);
+    base.castShadow = true;
+    base.receiveShadow = true;
+    scene.add(base);
+
+    // Ripas verticais
+    const ripWidth = Math.max(width, depth) > 15 ? 2 : 1;
+    const ripCount = Math.floor(Math.max(width, depth) / 3);
+    for (let i = 0; i < ripCount; i++) {
+        const ripGeometry = new THREE.BoxGeometry(
+            width > depth ? ripWidth : width,
+            height * 0.8,
+            depth > width ? ripWidth : depth
+        );
+        const rip = new THREE.Mesh(ripGeometry, baseMaterial);
+        
+        if (width > depth) {
+            rip.position.set(x - width/2 + (i + 0.5) * width/ripCount, y + height * 0.5, z);
+        } else {
+            rip.position.set(x, y + height * 0.5, z - depth/2 + (i + 0.5) * depth/ripCount);
+        }
+        
+        rip.castShadow = true;
+        rip.receiveShadow = true;
+        scene.add(rip);
+    }
+
+    // Física (apenas a base)
+    const shape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    });
+    body.position.set(x, y + height/2, z);
+    world.add(body);
+}
+
+// Rampa de madeira
+function createWoodenRamp(x, y, z, width, height, depth, rotation) {
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = getWoodMaterial();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    mesh.rotation.z = rotation;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+
+    // Física
+    const shape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    });
+    body.position.set(x, y, z);
+    body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 0, 1), rotation);
+    world.add(body);
+}
+
+// Plataforma de madeira
+function createWoodenPlatform(x, y, z, width, height, depth) {
+    const geometry = new THREE.BoxGeometry(width, height, depth);
+    const material = getWoodMaterial();
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    scene.add(mesh);
+
+    // Suportes da plataforma
+    const supportCount = Math.floor(Math.max(width, depth) / 8);
+    for (let i = 0; i < supportCount; i++) {
+        const supportGeometry = new THREE.BoxGeometry(2, y, 2);
+        const support = new THREE.Mesh(supportGeometry, material);
+        
+        if (width > depth) {
+            support.position.set(x - width/2 + (i + 0.5) * width/supportCount, y/2, z);
+        } else {
+            support.position.set(x, y/2, z - depth/2 + (i + 0.5) * depth/supportCount);
+        }
+        
+        support.castShadow = true;
+        support.receiveShadow = true;
+        scene.add(support);
+    }
+
+    // Física
+    const shape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    });
+    body.position.set(x, y, z);
+    world.add(body);
+}
+
+// Torre de madeira
+function createWoodenTower(x, y, z, width, height, depth) {
+    // Base da torre
+    const baseGeometry = new THREE.BoxGeometry(width, height * 0.7, depth);
+    const material = getWoodMaterial();
+    const base = new THREE.Mesh(baseGeometry, material);
+    base.position.set(x, y + height * 0.35, z);
+    base.castShadow = true;
+    base.receiveShadow = true;
+    scene.add(base);
+
+    // Topo da torre (pirâmide)
+    const roofGeometry = new THREE.ConeGeometry(width * 0.7, height * 0.4, 8);
+    const roofMaterial = new THREE.MeshPhongMaterial({ color: 0x654321 });
+    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+    roof.position.set(x, y + height * 0.9, z);
+    roof.castShadow = true;
+    roof.receiveShadow = true;
+    scene.add(roof);
+
+    // Janelas
+    const windowGeometry = new THREE.BoxGeometry(1, 3, 0.5);
+    const windowMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    
+    for (let i = 0; i < 4; i++) {
+        const window = new THREE.Mesh(windowGeometry, windowMaterial);
+        const angle = (i / 4) * Math.PI * 2;
+        window.position.set(
+            x + Math.cos(angle) * width * 0.51,
+            y + height * 0.5,
+            z + Math.sin(angle) * depth * 0.51
+        );
+        scene.add(window);
+    }
+
+    // Física
+    const shape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    });
+    body.position.set(x, y + height/2, z);
+    world.add(body);
+}
+
+// Ponte de madeira
+function createWoodenBridge(x, y, z, width, height, depth) {
+    // Deck da ponte
+    const deckGeometry = new THREE.BoxGeometry(width, height, depth);
+    const material = getWoodMaterial();
+    const deck = new THREE.Mesh(deckGeometry, material);
+    deck.position.set(x, y, z);
+    deck.castShadow = true;
+    deck.receiveShadow = true;
+    scene.add(deck);
+
+    // Corrimãos
+    const railHeight = 4;
+    const railGeometry = new THREE.BoxGeometry(
+        width > depth ? width : 0.5,
+        railHeight,
+        depth > width ? depth : 0.5
+    );
+    
+    // Corrimão esquerdo
+    const leftRail = new THREE.Mesh(railGeometry, material);
+    if (width > depth) {
+        leftRail.position.set(x, y + railHeight/2, z - depth/2);
+    } else {
+        leftRail.position.set(x - width/2, y + railHeight/2, z);
+    }
+    leftRail.castShadow = true;
+    scene.add(leftRail);
+
+    // Corrimão direito
+    const rightRail = new THREE.Mesh(railGeometry, material);
+    if (width > depth) {
+        rightRail.position.set(x, y + railHeight/2, z + depth/2);
+    } else {
+        rightRail.position.set(x + width/2, y + railHeight/2, z);
+    }
+    rightRail.castShadow = true;
+    scene.add(rightRail);
+
+    // Física
+    const shape = new CANNON.Box(new CANNON.Vec3(width/2, height/2, depth/2));
+    const body = new CANNON.Body({
+        mass: 0,
+        shape: shape
+    });
+    body.position.set(x, y, z);
+    world.add(body);
+}
+
+// ==========================================
 // CRIAR PONTOS DE INÍCIO E FIM
 // ==========================================
 
@@ -357,11 +706,11 @@ function createStartEndPoints() {
         emissiveIntensity: 0.5
     });
     startPoint = new THREE.Mesh(startGeometry, startMaterial);
-    startPoint.position.set(-40, 0.25, 0);
+    startPoint.position.set(-60, 0.25, 0);
     scene.add(startPoint);
 
     // Texto "A"
-    createTextSprite("A", -40, 8, 0, 0x4CAF50);
+    createTextSprite("A", -60, 8, 0, 0x4CAF50);
 
     // Ponto B (Fim)
     const endGeometry = new THREE.CylinderGeometry(3, 3, 0.5, 32);
@@ -371,11 +720,11 @@ function createStartEndPoints() {
         emissiveIntensity: 0.5
     });
     endPoint = new THREE.Mesh(endGeometry, endMaterial);
-    endPoint.position.set(40, 0.25, 0);
+    endPoint.position.set(60, 0.25, 0);
     scene.add(endPoint);
 
     // Texto "B"
-    createTextSprite("B", 40, 8, 0, 0xF44336);
+    createTextSprite("B", 60, 8, 0, 0xF44336);
 }
 
 // Criar sprite de texto
@@ -608,6 +957,10 @@ function resetGame() {
     robotBody.angularVelocity.set(0, 0, 0);
     robotBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), initialRobotRotation);
 
+    // Resetar câmera para posição inicial
+    camera.position.set(initialRobotPosition.x, initialRobotPosition.y + 15, initialRobotPosition.z + 25);
+    camera.lookAt(initialRobotPosition.x, initialRobotPosition.y, initialRobotPosition.z);
+
     // Limpar interface
     document.getElementById('command-input').value = '';
     updateStatus('Jogo resetado! Aguardando comandos...', 'info');
@@ -644,6 +997,9 @@ function animate() {
     euler.z = 0;
     robot.rotation.setFromVector3(euler.toVector3());
 
+    // Atualizar câmera em terceira pessoa
+    updateThirdPersonCamera();
+
     // Atualizar posição na interface
     if (!isExecuting) {
         updatePosition();
@@ -651,6 +1007,28 @@ function animate() {
 
     // Renderizar cena
     renderer.render(scene, camera);
+}
+
+// Atualizar câmera em terceira pessoa
+function updateThirdPersonCamera() {
+    // Distância da câmera atrás do robô
+    const cameraDistance = 25;
+    const cameraHeight = 15;
+    
+    // Calcular posição desejada da câmera baseada na rotação do robô
+    const robotAngle = robot.rotation.y;
+    const targetCameraX = robot.position.x - Math.sin(robotAngle) * cameraDistance;
+    const targetCameraZ = robot.position.z - Math.cos(robotAngle) * cameraDistance;
+    const targetCameraY = robot.position.y + cameraHeight;
+    
+    // Suavizar movimento da câmera (interpolação)
+    const lerpFactor = 0.1;
+    camera.position.x += (targetCameraX - camera.position.x) * lerpFactor;
+    camera.position.y += (targetCameraY - camera.position.y) * lerpFactor;
+    camera.position.z += (targetCameraZ - camera.position.z) * lerpFactor;
+    
+    // Fazer a câmera olhar para o robô
+    camera.lookAt(robot.position.x, robot.position.y + 2, robot.position.z);
 }
 
 // ==========================================
