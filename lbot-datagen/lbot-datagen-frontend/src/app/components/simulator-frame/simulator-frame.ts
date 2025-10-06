@@ -9,7 +9,7 @@ import { Subscription } from 'rxjs';
   imports: [CommonModule],
   template: `
     <div class="simulator-wrapper">
-      <iframe #simFrame title="LBML Simulator" class="sim-iframe" src="/simulator/index.html"></iframe>
+      <iframe #simFrame title="LBML Simulator" class="sim-iframe" src="/robo-simulator.html"></iframe>
     </div>
   `,
   styleUrls: ['./simulator-frame.css']
