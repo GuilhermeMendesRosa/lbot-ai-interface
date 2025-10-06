@@ -16,19 +16,6 @@
     </div>
     <div class="indicator" id="animationIndicator">EXECUTANDO...</div>
     <div class="error" id="errorMessage">Comando inválido!</div>
-    
-    <div style="position: absolute; bottom: 20px; left: 20px; background: rgba(255,255,255,0.9); padding: 10px; border-radius: 5px; font-family: monospace;">
-        <div>Console de Teste:</div>
-        <input type="text" id="testCommand" placeholder="Ex: DF5" style="width: 100px; margin: 5px;">
-        <button onclick="testCommand()" style="margin: 5px;">Executar</button>
-        <button onclick="resetCommand()" style="margin: 5px;">Reset</button>
-        <button onclick="debugInfo()" style="margin: 5px;">Debug</button>
-        <div style="font-size: 12px; margin-top: 5px;">Exemplos: DF2, DF5, DR10, RL90</div>
-        <button onclick="document.getElementById('testCommand').value='DF2'; testCommand();" style="margin: 2px; font-size: 11px;">Teste DF2</button>
-        <button onclick="document.getElementById('testCommand').value='RL90'; testCommand();" style="margin: 2px; font-size: 11px;">Teste RL90</button>
-        <button onclick="forceMove()" style="margin: 2px; font-size: 11px;">Força Pos</button>
-        <button onclick="testForce()" style="margin: 2px; font-size: 11px;">Força Fís</button>
-    </div>
 </div>
 
 <script type="importmap">
