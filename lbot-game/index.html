@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Robô LBML - Jogo 3D</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Canvas 3D será inserido aqui -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Interface de controle -->
+        <div id="controls">
+            <div id="info-panel">
+                <h2>🤖 Controle do Robô LBML</h2>
+                <p>Comandos: D[valor][F/B/L/R]; ou R[valor][L/R];</p>
+                <p>Exemplo: D40F;R90R;D20F;</p>
+            </div>
+
+            <div id="command-panel">
+                <textarea id="command-input" placeholder="Digite os comandos LBML aqui...
+Exemplos:
+D50F; - Mover 50cm para frente
+R90R; - Girar 90° para direita
+D30L; - Mover 30cm para esquerda"></textarea>
+                <div id="buttons">
+                    <button id="execute-btn" onclick="executeCommands()">▶ Executar</button>
+                    <button id="reset-btn" onclick="resetGame()">🔄 Resetar</button>
+                </div>
+            </div>
+
+            <div id="status-panel">
+                <div id="status">Status: Aguardando comandos...</div>
+                <div id="position">Posição: A (Início)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bibliotecas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
