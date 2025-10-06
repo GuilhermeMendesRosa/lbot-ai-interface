@@ -27,10 +27,8 @@ export function clamp(value, min, max) {
 
 // Parsing de comandos LBML
 export function parseLBMLCommand(command) {
-  // Remove espaços e ponto e vírgula do final se existir
-  const cleanCommand = command.trim().replace(/;$/, '');
-  const regex = /^([DR])(\d+)([FBLR])$/;
-  const match = cleanCommand.match(regex);
+  const regex = /^([DR])(\d+)([FBLR]);$/;
+  const match = command.match(regex);
   if (!match) return null;
   
   const [, type, value, direction] = match;
