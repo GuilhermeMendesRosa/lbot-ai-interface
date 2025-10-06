@@ -1,10 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { LbotChat } from './components/lbot-chat/lbot-chat';
-import { SimulatorFrameComponent } from './components/simulator-frame/simulator-frame';
+import { RoboSimulatorComponent } from './components/robo-simulator/robo-simulator';
 
 @Component({
   selector: 'app-root',
-  imports: [LbotChat, SimulatorFrameComponent],
+  imports: [LbotChat, RoboSimulatorComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
