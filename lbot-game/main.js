@@ -13,6 +13,12 @@ let isExecuting = false;
 let initialRobotPosition = { x: -60, y: 5, z: 0 };
 let initialRobotRotation = 0;
 
+// Variáveis para controle de câmera
+let mouseX = 0, mouseY = 0;
+let isMouseDown = false;
+let cameraDistance = 100; // Reduzido de 350 para 100
+let cameraHeight = 50;    // Reduzido de 200 para 50
+
 // Configurações
 const UNIT_SCALE = 1; // 1 unidade = 1 cm
 const ROBOT_SPEED = 0.1; // Velocidade de movimento
@@ -52,18 +58,19 @@ function init() {
 function setupThreeJS() {
     // Criar cena
     scene = new THREE.Scene();
-    scene.fog = new THREE.Fog(0x87CEEB, 100, 500);
+    scene.background = new THREE.Color(0x87CEEB);
+    scene.fog = new THREE.Fog(0x87CEEB, 200, 800);
 
     // Configurar câmera (terceira pessoa)
     camera = new THREE.PerspectiveCamera(
         75,
         window.innerWidth / window.innerHeight,
         0.1,
-        1000
+        1500
     );
-    // Posição inicial será atualizada no loop de animação
-    camera.position.set(initialRobotPosition.x, initialRobotPosition.y + 15, initialRobotPosition.z + 25);
-    camera.lookAt(initialRobotPosition.x, initialRobotPosition.y, initialRobotPosition.z);
+    // Posição inicial mais próxima para melhor visualização
+    camera.position.set(50, 60, 80);
+    camera.lookAt(0, 0, 0);
 
     // Configurar renderer
     renderer = new THREE.WebGLRenderer({
@@ -73,20 +80,32 @@ function setupThreeJS() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
 
-    // Iluminação
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Iluminação similar ao simulador LBML
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(50, 100, 50);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    directionalLight.position.set(100, 200, 100);
     directionalLight.castShadow = true;
-    directionalLight.shadow.camera.left = -150;
-    directionalLight.shadow.camera.right = 150;
-    directionalLight.shadow.camera.top = 150;
-    directionalLight.shadow.camera.bottom = -150;
+    directionalLight.shadow.camera.left = -400;
+    directionalLight.shadow.camera.right = 400;
+    directionalLight.shadow.camera.top = 400;
+    directionalLight.shadow.camera.bottom = -400;
+    directionalLight.shadow.camera.near = 1;
+    directionalLight.shadow.camera.far = 500;
+    directionalLight.shadow.mapSize.width = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
     scene.add(directionalLight);
 
+    const hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x228B22, 0.6);
+    scene.add(hemisphereLight);
+
+    // Event listeners para controle de mouse
+    setupMouseControls();
+    
     // Ajustar ao redimensionar
     window.addEventListener('resize', onWindowResize);
 }
@@ -113,16 +132,23 @@ function setupPhysics() {
 
 function createEnvironment() {
     // Criar chão com textura de grama
-    const groundGeometry = new THREE.PlaneGeometry(300, 300);
+    const groundGeometry = new THREE.PlaneGeometry(800, 800);
     const groundTexture = createGrassTexture();
     const groundMaterial = new THREE.MeshLambertMaterial({ 
         map: groundTexture,
+        color: 0x90EE90,
         side: THREE.DoubleSide 
     });
     ground = new THREE.Mesh(groundGeometry, groundMaterial);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
+
+    // Adicionar grid helper similar ao simulador LBML
+    const gridHelper = new THREE.GridHelper(800, 80, 0x4CAF50, 0x90EE90);
+    gridHelper.material.opacity = 0.3;
+    gridHelper.material.transparent = true;
+    scene.add(gridHelper);
 
     // Adicionar física ao chão
     const groundShape = new CANNON.Plane();
@@ -143,27 +169,37 @@ function createEnvironment() {
     scene.add(sky);
 }
 
-// Criar textura procedural de grama
+// Criar textura procedural de grama similar ao simulador LBML
 function createGrassTexture() {
-    const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
-    const ctx = canvas.getContext('2d');
+    // Usar SVG similar ao do HTML para criar uma textura mais realista
+    const svg = `
+        <svg width="64" height="64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <pattern id="grass" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+              <rect width="8" height="8" fill="#228B22"/>
+              <path d="M2,8 Q2,6 1,4 Q2,2 3,0" stroke="#32CD32" stroke-width="0.5" fill="none"/>
+              <path d="M4,8 Q4,6 5,4 Q4,2 3,0" stroke="#32CD32" stroke-width="0.5" fill="none"/>
+              <path d="M6,8 Q6,6 7,4 Q6,2 5,0" stroke="#32CD32" stroke-width="0.5" fill="none"/>
+              <circle cx="1" cy="7" r="0.3" fill="#90EE90"/>
+              <circle cx="5" cy="6" r="0.2" fill="#90EE90"/>
+              <circle cx="7" cy="7" r="0.25" fill="#90EE90"/>
+            </pattern>
+          </defs>
+          <rect width="64" height="64" fill="url(#grass)"/>
+        </svg>
+    `;
 
-    // Fundo verde
-    ctx.fillStyle = '#4a7c4e';
-    ctx.fillRect(0, 0, 512, 512);
-
-    // Adicionar variação
-    for (let i = 0; i < 1000; i++) {
-        ctx.fillStyle = `rgba(${50 + Math.random() * 30}, ${100 + Math.random() * 55}, ${50 + Math.random() * 30}, 0.3)`;
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
-    }
-
-    const texture = new THREE.CanvasTexture(canvas);
+    // Converter SVG para data URL
+    const dataUrl = 'data:image/svg+xml;base64,' + btoa(svg);
+    
+    // Criar textura
+    const loader = new THREE.TextureLoader();
+    const texture = loader.load(dataUrl);
+    
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(10, 10);
+    texture.repeat.set(100, 100);
+    
     return texture;
 }
 
@@ -175,47 +211,183 @@ function createRobot() {
     // Grupo para o robô
     robot = new THREE.Group();
 
-    // Corpo principal (cubo)
-    const bodyGeometry = new THREE.BoxGeometry(4, 4, 4);
-    const bodyMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0x2196F3,
-        emissive: 0x1565C0,
-        emissiveIntensity: 0.2
+    // Chassis (base do carrinho)
+    const chassisGeometry = new THREE.BoxGeometry(5, 1, 7.5);
+    const chassisMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x2C3E50, 
+        metalness: 0.7, 
+        roughness: 0.3 
     });
-    const bodyMesh = new THREE.Mesh(bodyGeometry, bodyMaterial);
-    bodyMesh.castShadow = true;
-    robot.add(bodyMesh);
+    const chassis = new THREE.Mesh(chassisGeometry, chassisMaterial);
+    chassis.position.y = 1.5;
+    chassis.castShadow = true;
+    robot.add(chassis);
 
-    // Cabeça (esfera)
-    const headGeometry = new THREE.SphereGeometry(1.5, 16, 16);
-    const headMaterial = new THREE.MeshPhongMaterial({ 
-        color: 0xFF5722,
-        emissive: 0xE64A19,
-        emissiveIntensity: 0.3
+    // Corpo principal
+    const bodyGeometry = new THREE.BoxGeometry(4.5, 2, 6.25);
+    const bodyMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x3498DB, 
+        metalness: 0.6, 
+        roughness: 0.4 
     });
-    const headMesh = new THREE.Mesh(headGeometry, headMaterial);
-    headMesh.position.y = 3;
-    headMesh.castShadow = true;
-    robot.add(headMesh);
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 3;
+    body.castShadow = true;
+    robot.add(body);
 
-    // Olhos (esferas pequenas)
-    const eyeGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-    const eyeMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+    // Capô do carrinho
+    const hoodGeometry = new THREE.BoxGeometry(4, 0.75, 2);
+    const hoodMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xE74C3C, 
+        metalness: 0.5, 
+        roughness: 0.3 
+    });
+    const hood = new THREE.Mesh(hoodGeometry, hoodMaterial);
+    hood.position.set(0, 4.125, 2);
+    hood.castShadow = true;
+    robot.add(hood);
 
-    const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    leftEye.position.set(-0.5, 3, 1.3);
-    robot.add(leftEye);
+    // Para-brisa
+    const windshieldGeometry = new THREE.BoxGeometry(4, 1.5, 0.25);
+    const windshieldMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x87CEEB, 
+        metalness: 0.1, 
+        roughness: 0.1, 
+        transparent: true, 
+        opacity: 0.7 
+    });
+    const windshield = new THREE.Mesh(windshieldGeometry, windshieldMaterial);
+    windshield.position.set(0, 3.75, 1);
+    windshield.rotation.x = -0.2;
+    robot.add(windshield);
 
-    const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
-    rightEye.position.set(0.5, 3, 1.3);
-    robot.add(rightEye);
+    // Faróis
+    const headlightGeometry = new THREE.CylinderGeometry(0.5, 0.5, 0.25, 12);
+    const headlightMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xffffff, 
+        emissive: 0xffffaa, 
+        emissiveIntensity: 0.5 
+    });
+    
+    const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+    leftHeadlight.rotation.z = Math.PI / 2;
+    leftHeadlight.position.set(-1.5, 3.25, 3.875);
+    robot.add(leftHeadlight);
 
-    // Indicador de direção (cone)
-    const arrowGeometry = new THREE.ConeGeometry(0.5, 2, 8);
-    const arrowMaterial = new THREE.MeshPhongMaterial({ color: 0x4CAF50 });
+    const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+    rightHeadlight.rotation.z = Math.PI / 2;
+    rightHeadlight.position.set(1.5, 3.25, 3.875);
+    robot.add(rightHeadlight);
+
+    // Grade frontal
+    const grillGeometry = new THREE.BoxGeometry(3, 1, 0.125);
+    const grillMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x2C3E50, 
+        metalness: 0.8, 
+        roughness: 0.2 
+    });
+    const grill = new THREE.Mesh(grillGeometry, grillMaterial);
+    grill.position.set(0, 2.75, 3.8);
+    robot.add(grill);
+
+    // Rodas
+    const wheelGeometry = new THREE.CylinderGeometry(1, 1, 0.75, 16);
+    const wheelMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x2C3E50, 
+        metalness: 0.8, 
+        roughness: 0.2 
+    });
+
+    // Roda dianteira esquerda
+    const frontLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    frontLeftWheel.rotation.z = Math.PI / 2;
+    frontLeftWheel.position.set(-2.75, 1, 2.5);
+    frontLeftWheel.castShadow = true;
+    robot.add(frontLeftWheel);
+
+    // Roda dianteira direita
+    const frontRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    frontRightWheel.rotation.z = Math.PI / 2;
+    frontRightWheel.position.set(2.75, 1, 2.5);
+    frontRightWheel.castShadow = true;
+    robot.add(frontRightWheel);
+
+    // Roda traseira esquerda
+    const rearLeftWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    rearLeftWheel.rotation.z = Math.PI / 2;
+    rearLeftWheel.position.set(-2.75, 1, -2.5);
+    rearLeftWheel.castShadow = true;
+    robot.add(rearLeftWheel);
+
+    // Roda traseira direita
+    const rearRightWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+    rearRightWheel.rotation.z = Math.PI / 2;
+    rearRightWheel.position.set(2.75, 1, -2.5);
+    rearRightWheel.castShadow = true;
+    robot.add(rearRightWheel);
+
+    // Detalhes das rodas
+    const wheelDetailGeometry = new THREE.CylinderGeometry(0.625, 0.625, 0.875, 8);
+    const wheelDetailMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x95A5A6, 
+        metalness: 0.9, 
+        roughness: 0.1 
+    });
+
+    const frontLeftWheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial);
+    frontLeftWheelDetail.rotation.z = Math.PI / 2;
+    frontLeftWheelDetail.position.set(-2.75, 1, 2.5);
+    robot.add(frontLeftWheelDetail);
+
+    const frontRightWheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial);
+    frontRightWheelDetail.rotation.z = Math.PI / 2;
+    frontRightWheelDetail.position.set(2.75, 1, 2.5);
+    robot.add(frontRightWheelDetail);
+
+    const rearLeftWheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial);
+    rearLeftWheelDetail.rotation.z = Math.PI / 2;
+    rearLeftWheelDetail.position.set(-2.75, 1, -2.5);
+    robot.add(rearLeftWheelDetail);
+
+    const rearRightWheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial);
+    rearRightWheelDetail.rotation.z = Math.PI / 2;
+    rearRightWheelDetail.position.set(2.75, 1, -2.5);
+    robot.add(rearRightWheelDetail);
+
+    // Antena
+    const antennaGeometry = new THREE.CylinderGeometry(0.075, 0.075, 1.5, 8);
+    const antennaMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x95A5A6, 
+        metalness: 0.8, 
+        roughness: 0.2 
+    });
+    const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+    antenna.position.set(0, 4.75, -1.25);
+    robot.add(antenna);
+
+    // LED da antena
+    const antennaLedGeometry = new THREE.SphereGeometry(0.25, 8, 6);
+    const antennaLedMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xFF0000, 
+        emissive: 0xFF0000, 
+        emissiveIntensity: 0.4 
+    });
+    const antennaLed = new THREE.Mesh(antennaLedGeometry, antennaLedMaterial);
+    antennaLed.position.set(0, 5.5, -1.25);
+    robot.add(antennaLed);
+
+    // Indicador de direção (seta amarela)
+    const arrowGeometry = new THREE.ConeGeometry(0.5, 1, 8);
+    const arrowMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xFFFF00, 
+        metalness: 0.5, 
+        roughness: 0.3, 
+        emissive: 0xFFFF00, 
+        emissiveIntensity: 0.3 
+    });
     const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
     arrow.rotation.x = Math.PI / 2;
-    arrow.position.z = 3;
+    arrow.position.set(0, 4.25, 3);
     robot.add(arrow);
 
     // Posicionar robô
@@ -239,53 +411,45 @@ function createRobot() {
 // ==========================================
 
 function createArena() {
-    // Paredes da arena
-    createWall(-75, 0, 0, 2, 20, 150, 0x8B4513); // Parede esquerda
-    createWall(75, 0, 0, 2, 20, 150, 0x8B4513);  // Parede direita
-    createWall(0, 0, -75, 150, 20, 2, 0x8B4513); // Parede traseira
-    createWall(0, 0, 75, 150, 20, 2, 0x8B4513);  // Parede frontal
+    // Paredes da arena (reduzidas para altura baixa)
+    createWall(-75, 0, 0, 2, 8, 150, 0x8B4513); // Parede esquerda
+    createWall(75, 0, 0, 2, 8, 150, 0x8B4513);  // Parede direita
+    createWall(0, 0, -75, 150, 8, 2, 0x8B4513); // Parede traseira
+    createWall(0, 0, 75, 150, 8, 2, 0x8B4513);  // Parede frontal
 
-    // Obstáculos de madeira
-    createWoodenObstacle(-30, 5, 0, 8, 10, 8);     // Caixa de madeira 1
-    createWoodenObstacle(15, 5, -30, 10, 10, 10);  // Caixa de madeira 2
-    createWoodenObstacle(35, 3, 35, 6, 6, 6);      // Caixa de madeira 3
-    createWoodenObstacle(-50, 7, -30, 12, 14, 8);  // Caixa de madeira grande
-    createWoodenObstacle(50, 4, 20, 8, 8, 12);     // Caixa de madeira 4
+    // Obstáculos de madeira baixos
+    createWoodenObstacle(-30, 2, 0, 8, 4, 8);     // Caixa de madeira 1
+    createWoodenObstacle(15, 2, -30, 10, 4, 10);  // Caixa de madeira 2
+    createWoodenObstacle(35, 1.5, 35, 6, 3, 6);   // Caixa de madeira 3
+    createWoodenObstacle(-50, 3, -30, 12, 6, 8);  // Caixa de madeira grande
+    createWoodenObstacle(50, 2, 20, 8, 4, 12);    // Caixa de madeira 4
 
-    // Pilares de madeira
-    createWoodenPillar(-20, 15, -50, 4, 30, 4);
-    createWoodenPillar(25, 15, 50, 4, 30, 4);
-    createWoodenPillar(-60, 15, 40, 4, 30, 4);
-    createWoodenPillar(60, 15, -40, 4, 30, 4);
-
-    // Barris de madeira
+    // Barris de madeira (mantidos - já são baixos)
     createWoodenBarrel(-40, 4, 30, 4, 8);
     createWoodenBarrel(40, 4, -35, 4, 8);
     createWoodenBarrel(0, 4, -60, 4, 8);
     createWoodenBarrel(-15, 4, 55, 4, 8);
 
-    // Cercas de madeira
-    createWoodenFence(-10, 0, -15, 20, 6, 1);
-    createWoodenFence(30, 0, 10, 1, 6, 20);
-    createWoodenFence(-35, 0, 50, 25, 6, 1);
+    // Cercas de madeira baixas
+    createWoodenFence(-10, 0, -15, 20, 3, 1);   // Reduzida de 6 para 3
+    createWoodenFence(30, 0, 10, 1, 3, 20);     // Reduzida de 6 para 3
+    createWoodenFence(-35, 0, 50, 25, 3, 1);    // Reduzida de 6 para 3
 
-    // Rampas de madeira
-    createWoodenRamp(0, 2, 0, 20, 0.5, 15, Math.PI / 6);
-    createWoodenRamp(-40, 2, 40, 15, 0.5, 10, -Math.PI / 8);
-    createWoodenRamp(45, 2, -20, 18, 0.5, 12, Math.PI / 10);
+    // Rampas de madeira baixas (mantidas - já são baixas)
+    createWoodenRamp(0, 1, 0, 20, 0.5, 15, Math.PI / 8);      // Altura reduzida
+    createWoodenRamp(-40, 1, 40, 15, 0.5, 10, -Math.PI / 12); // Altura reduzida
+    createWoodenRamp(45, 1, -20, 18, 0.5, 12, Math.PI / 15);  // Altura reduzida
 
-    // Plataformas de madeira
-    createWoodenPlatform(45, 8, -50, 15, 1, 15);
-    createWoodenPlatform(-45, 6, -20, 20, 1, 12);
-    createWoodenPlatform(20, 10, 60, 12, 1, 18);
+    // Plataformas de madeira baixas
+    createWoodenPlatform(45, 3, -50, 15, 1, 15);  // Altura reduzida de 8 para 3
+    createWoodenPlatform(-45, 2.5, -20, 20, 1, 12); // Altura reduzida de 6 para 2.5
+    createWoodenPlatform(20, 4, 60, 12, 1, 18);   // Altura reduzida de 10 para 4
 
-    // Torres de madeira
-    createWoodenTower(-60, 0, -60, 8, 25, 8);
-    createWoodenTower(60, 0, 60, 8, 25, 8);
-
-    // Pontes de madeira
-    createWoodenBridge(0, 12, -40, 40, 2, 8);
-    createWoodenBridge(-30, 8, 0, 25, 2, 6);
+    // Obstáculos adicionais baixos para compensar
+    createWoodenObstacle(-20, 1.5, -25, 6, 3, 6);
+    createWoodenObstacle(25, 1.5, 25, 6, 3, 6);
+    createWoodenObstacle(-10, 2, 40, 8, 4, 4);
+    createWoodenObstacle(10, 2, -40, 8, 4, 4);
 }
 
 // Criar parede
@@ -843,6 +1007,15 @@ async function moveRobot(distance, direction) {
     const steps = Math.ceil(distance / ROBOT_SPEED);
     const stepDistance = distance / steps * UNIT_SCALE;
 
+    // Para comandos L e R, primeiro rotacionar 90 graus
+    if (direction === 'L') {
+        await rotateRobot(90, 'L');
+        direction = 'F'; // Após girar à esquerda, mover para frente
+    } else if (direction === 'R') {
+        await rotateRobot(90, 'R');
+        direction = 'F'; // Após girar à direita, mover para frente
+    }
+
     for (let i = 0; i < steps; i++) {
         const angle = robot.rotation.y;
         let dx = 0, dz = 0;
@@ -855,14 +1028,6 @@ async function moveRobot(distance, direction) {
             case 'B': // Trás
                 dx = -Math.sin(angle) * stepDistance;
                 dz = -Math.cos(angle) * stepDistance;
-                break;
-            case 'L': // Esquerda
-                dx = Math.sin(angle - Math.PI/2) * stepDistance;
-                dz = Math.cos(angle - Math.PI/2) * stepDistance;
-                break;
-            case 'R': // Direita
-                dx = Math.sin(angle + Math.PI/2) * stepDistance;
-                dz = Math.cos(angle + Math.PI/2) * stepDistance;
                 break;
         }
 
@@ -957,9 +1122,12 @@ function resetGame() {
     robotBody.angularVelocity.set(0, 0, 0);
     robotBody.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), initialRobotRotation);
 
-    // Resetar câmera para posição inicial
-    camera.position.set(initialRobotPosition.x, initialRobotPosition.y + 15, initialRobotPosition.z + 25);
-    camera.lookAt(initialRobotPosition.x, initialRobotPosition.y, initialRobotPosition.z);
+    // Resetar câmera para posição inicial mais próxima
+    camera.position.set(50, 60, 80);
+    camera.lookAt(0, 0, 0);
+    mouseX = 0;
+    mouseY = 0;
+    isMouseDown = false;
 
     // Limpar interface
     document.getElementById('command-input').value = '';
@@ -997,8 +1165,8 @@ function animate() {
     euler.z = 0;
     robot.rotation.setFromVector3(euler.toVector3());
 
-    // Atualizar câmera em terceira pessoa
-    updateThirdPersonCamera();
+    // Atualizar câmera orbital
+    updateOrbitalCamera();
 
     // Atualizar posição na interface
     if (!isExecuting) {
@@ -1009,26 +1177,52 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-// Atualizar câmera em terceira pessoa
-function updateThirdPersonCamera() {
-    // Distância da câmera atrás do robô
-    const cameraDistance = 25;
-    const cameraHeight = 15;
+// Configurar controles de mouse para câmera orbital
+function setupMouseControls() {
+    document.addEventListener('mousedown', (e) => {
+        isMouseDown = true;
+    });
     
-    // Calcular posição desejada da câmera baseada na rotação do robô
-    const robotAngle = robot.rotation.y;
-    const targetCameraX = robot.position.x - Math.sin(robotAngle) * cameraDistance;
-    const targetCameraZ = robot.position.z - Math.cos(robotAngle) * cameraDistance;
-    const targetCameraY = robot.position.y + cameraHeight;
+    document.addEventListener('mouseup', (e) => {
+        isMouseDown = false;
+    });
     
-    // Suavizar movimento da câmera (interpolação)
-    const lerpFactor = 0.1;
-    camera.position.x += (targetCameraX - camera.position.x) * lerpFactor;
-    camera.position.y += (targetCameraY - camera.position.y) * lerpFactor;
-    camera.position.z += (targetCameraZ - camera.position.z) * lerpFactor;
+    document.addEventListener('mousemove', (e) => {
+        if (isMouseDown) {
+            mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+            mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+        }
+    });
     
-    // Fazer a câmera olhar para o robô
-    camera.lookAt(robot.position.x, robot.position.y + 2, robot.position.z);
+    // Controle de zoom com scroll do mouse (distâncias mais próximas)
+    document.addEventListener('wheel', (e) => {
+        cameraDistance += e.deltaY * 0.05; // Reduzir sensibilidade
+        cameraDistance = Math.max(20, Math.min(200, cameraDistance)); // Limites mais próximos
+    });
+}
+
+// Atualizar câmera orbital similar ao simulador LBML
+function updateOrbitalCamera() {
+    if (isMouseDown) {
+        // Controle orbital baseado no mouse
+        camera.position.x = cameraDistance * Math.cos(mouseX * Math.PI);
+        camera.position.z = cameraDistance * Math.sin(mouseX * Math.PI);
+        camera.position.y = cameraHeight + mouseY * 100;
+        camera.lookAt(robot.position);
+    } else {
+        // Posição padrão seguindo o robô suavemente (mais próxima)
+        const targetX = robot.position.x + 40;  // Reduzido de 150 para 40
+        const targetY = robot.position.y + 50;  // Reduzido de 200 para 50
+        const targetZ = robot.position.z + 60;  // Reduzido de 300 para 60
+        
+        // Interpolação suave
+        const lerpFactor = 0.05;
+        camera.position.x += (targetX - camera.position.x) * lerpFactor;
+        camera.position.y += (targetY - camera.position.y) * lerpFactor;
+        camera.position.z += (targetZ - camera.position.z) * lerpFactor;
+        
+        camera.lookAt(robot.position);
+    }
 }
 
 // ==========================================
