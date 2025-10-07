@@ -145,7 +145,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   private initPhysics(): void {
     // Create physics world
     this.world = new CANNON.World();
-    this.world.gravity.set(0, -9.82, 0);
+    this.world.gravity.set(0, 0, 0); // Desabilitando gravidade por enquanto
     this.world.broadphase = new CANNON.NaiveBroadphase();
     
     // Configure contact material
@@ -205,14 +205,14 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
     // Create robot physics body
     const robotShape = new CANNON.Box(new CANNON.Vec3(10, 10, 15));
-    this.robotBody = new CANNON.Body({ mass: 5 });
+    this.robotBody = new CANNON.Body({ mass: 0 }); // Massa 0 = estático
     this.robotBody.addShape(robotShape);
-    this.robotBody.position.set(0, 10, 0);
+    this.robotBody.position.set(0, 0, 0); // Posicionando no nível do chão
     this.robotBody.material = new CANNON.Material('robot');
     this.world.addBody(this.robotBody);
 
-    // Lock robot rotation on X and Z axes (only allow Y rotation)
-    this.robotBody.fixedRotation = true;
+    // Prevent any physics movement
+    this.robotBody.type = CANNON.Body.KINEMATIC;
     this.robotBody.updateMassProperties();
   }
 
@@ -538,6 +538,9 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       // Sync robot visual with physics body
       this.robotGroup.position.copy(this.robotBody.position as any);
       this.robotGroup.quaternion.copy(this.robotBody.quaternion as any);
+      
+      // Garantir que o robô esteja sempre na altura correta
+      this.robotGroup.position.y = 0;
 
       // Update robot state from physics body
       this.robotState.x = this.robotBody.position.x;
@@ -671,14 +674,11 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     }
     
     // Check collision with obstacles using physics
-    const testBody = new CANNON.Body({ mass: 0 });
-    const testShape = new CANNON.Box(new CANNON.Vec3(10, 10, 15));
-    testBody.addShape(testShape);
-    testBody.position.set(x, 10, z);
+    const testPosition = new CANNON.Vec3(x, 0, z); // Sempre no nível do chão
     
     // Simple collision check with obstacles
     for (const obstacle of this.obstacles) {
-      const distance = testBody.position.distanceTo(obstacle.body.position);
+      const distance = testPosition.distanceTo(obstacle.body.position);
       const minDistance = 25; // Minimum safe distance
       if (distance < minDistance) {
         return false;
@@ -705,7 +705,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       const duration = (distance / this.ROBOT_SPEED) * 1000;
       
       const startPos = this.robotBody.position.clone();
-      const targetPos = new CANNON.Vec3(targetX, this.robotBody.position.y, targetZ);
+      const targetPos = new CANNON.Vec3(targetX, 0, targetZ); // Sempre no nível do chão
       
       const animate = () => {
         const elapsed = Date.now() - startTime;
@@ -717,12 +717,11 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
         // Interpolate position
         const currentPos = new CANNON.Vec3(
           startPos.x + (targetPos.x - startPos.x) * easeProgress,
-          startPos.y,
+          0, // Sempre no chão
           startPos.z + (targetPos.z - startPos.z) * easeProgress
         );
         
         this.robotBody.position.copy(currentPos);
-        this.robotBody.velocity.set(0, 0, 0); // Stop any residual velocity
 
         if (progress < 1) {
           requestAnimationFrame(animate);
@@ -770,7 +769,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     this.robotState.rotation = 0;
     
     // Reset physics body
-    this.robotBody.position.set(0, 10, 0);
+    this.robotBody.position.set(0, 0, 0); // Sempre no chão
     this.robotBody.velocity.set(0, 0, 0);
     this.robotBody.angularVelocity.set(0, 0, 0);
     this.robotBody.quaternion.set(0, 0, 0, 1);
