@@ -1,5 +1,5 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit, Inject, PLATFORM_ID } from '@angular/core';
+import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { SimulatorBridgeService, SimulatorCommand } from '../../services/simulator-bridge.service';
 import { Subscription } from 'rxjs';
 import * as THREE from 'three';
@@ -89,7 +89,10 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   private mouseY = 0;
   private isMouseDown = false;
 
-  constructor(private bridge: SimulatorBridgeService) {}
+  constructor(
+    private bridge: SimulatorBridgeService,
+    @Inject(PLATFORM_ID) private platformId: Object
+  ) {}
 
   getRotationDisplay(): string {
     return Math.round(this.robotState.rotation % 360) + '°';
@@ -100,12 +103,15 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   ngAfterViewInit(): void {
-    this.initThreeJS();
-    this.initPhysics();
-    this.createPhysicsObjects();
-    this.createObstacles();
-    this.startRenderLoop();
-    this.setupEventListeners();
+    // Só inicializar no lado do cliente
+    if (isPlatformBrowser(this.platformId)) {
+      this.initThreeJS();
+      this.initPhysics();
+      this.createPhysicsObjects();
+      this.createObstacles();
+      this.startRenderLoop();
+      this.setupEventListeners();
+    }
   }
 
   ngOnDestroy(): void {
@@ -231,7 +237,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     const robotShape = new CANNON.Box(new CANNON.Vec3(10, 6, 15)); // Altura média
     this.robotBody = new CANNON.Body({ mass: 8 }); // Massa moderada
     this.robotBody.addShape(robotShape);
-    this.robotBody.position.set(0, 30, 0);
+    this.robotBody.position.set(0, 6, 0); // Centro do corpo físico - altura da caixa
     this.robotBody.material = new CANNON.Material('robot');
     
     // Amortecimento moderado - permitir movimento mas controlar instabilidade
@@ -266,7 +272,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
         const { x, y, z } = config.size as { x: number, y: number, z: number };
         geometry = new THREE.BoxGeometry(x, y, z);
         shape = new CANNON.Box(new CANNON.Vec3(x / 2, y / 2, z / 2));
-      } else {
+      } else {  
         const { radius, height } = config.size as { radius: number, height: number };
         geometry = new THREE.CylinderGeometry(radius, radius, height, 8);
         shape = new CANNON.Cylinder(radius, radius, height, 8);
@@ -417,7 +423,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       new THREE.BoxGeometry(20, 4, 30),
       new THREE.MeshStandardMaterial({ color: 0x2C3E50, metalness: 0.7, roughness: 0.3 })
     );
-    chassis.position.y = 6;
+    chassis.position.y = -4; // Posicionar no chão (corpo físico está em Y=6, então chassis vai para Y=2)
     chassis.castShadow = true;
     this.robotGroup.add(chassis);
 
@@ -426,7 +432,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       new THREE.BoxGeometry(18, 8, 25),
       new THREE.MeshStandardMaterial({ color: 0x3498DB, metalness: 0.6, roughness: 0.4 })
     );
-    body.position.y = 12;
+    body.position.y = 2; // Acima do chassis
     body.castShadow = true;
     this.robotGroup.add(body);
 
@@ -435,7 +441,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       new THREE.BoxGeometry(16, 3, 8),
       new THREE.MeshStandardMaterial({ color: 0xE74C3C, metalness: 0.5, roughness: 0.3 })
     );
-    hood.position.set(0, 16.5, 8);
+    hood.position.set(0, 6.5, 8);
     hood.castShadow = true;
     this.robotGroup.add(hood);
 
@@ -450,7 +456,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
         opacity: 0.7 
       })
     );
-    windshield.position.set(0, 15, 4);
+    windshield.position.set(0, 5, 4);
     windshield.rotation.x = -0.2;
     this.robotGroup.add(windshield);
 
@@ -464,12 +470,12 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     
     const leftHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
     leftHeadlight.rotation.z = Math.PI / 2;
-    leftHeadlight.position.set(-6, 13, 15.5);
+    leftHeadlight.position.set(-6, 3, 15.5);
     this.robotGroup.add(leftHeadlight);
 
     const rightHeadlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
     rightHeadlight.rotation.z = Math.PI / 2;
-    rightHeadlight.position.set(6, 13, 15.5);
+    rightHeadlight.position.set(6, 3, 15.5);
     this.robotGroup.add(rightHeadlight);
 
     // Grill
@@ -477,7 +483,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       new THREE.BoxGeometry(12, 4, 0.5),
       new THREE.MeshStandardMaterial({ color: 0x2C3E50, metalness: 0.8, roughness: 0.2 })
     );
-    grill.position.set(0, 11, 15.2);
+    grill.position.set(0, 1, 15.2);
     this.robotGroup.add(grill);
 
     // Wheels
@@ -494,7 +500,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     wheelPositions.forEach((pos) => {
       const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
       wheel.rotation.z = Math.PI / 2;
-      wheel.position.set(pos.x, 4, pos.z);
+      wheel.position.set(pos.x, -2, pos.z);
       wheel.castShadow = true;
       this.robotGroup.add(wheel);
 
@@ -503,7 +509,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       const wheelDetailMaterial = new THREE.MeshStandardMaterial({ color: 0x95A5A6, metalness: 0.9, roughness: 0.1 });
       const wheelDetail = new THREE.Mesh(wheelDetailGeometry, wheelDetailMaterial);
       wheelDetail.rotation.z = Math.PI / 2;
-      wheelDetail.position.set(pos.x, 4, pos.z);
+      wheelDetail.position.set(pos.x, -2, pos.z);
       this.robotGroup.add(wheelDetail);
     });
 
@@ -512,7 +518,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       new THREE.CylinderGeometry(0.3, 0.3, 6, 8),
       new THREE.MeshStandardMaterial({ color: 0x95A5A6, metalness: 0.8, roughness: 0.2 })
     );
-    antenna.position.set(0, 19, -5);
+    antenna.position.set(0, 9, -5);
     this.robotGroup.add(antenna);
 
     // Antenna LED
@@ -520,7 +526,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       new THREE.SphereGeometry(1, 8, 6),
       new THREE.MeshStandardMaterial({ color: 0xFF0000, emissive: 0xFF0000, emissiveIntensity: 0.4 })
     );
-    antennaLed.position.set(0, 22, -5);
+    antennaLed.position.set(0, 12, -5);
     this.robotGroup.add(antennaLed);
 
     // Direction arrow
@@ -535,7 +541,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       })
     );
     arrow.rotation.x = Math.PI / 2;
-    arrow.position.set(0, 17, 12);
+    arrow.position.set(0, 7, 12);
     this.robotGroup.add(arrow);
 
     this.scene.add(this.robotGroup);
@@ -878,7 +884,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     this.robotState.rotation = 0;
     
     // Reset physics body
-    this.robotBody.position.set(0, 30, 0); // Cair do alto
+    this.robotBody.position.set(0, 6, 0); // Posicionar no chão
     this.robotBody.velocity.set(0, 0, 0);
     this.robotBody.angularVelocity.set(0, 0, 0);
     this.robotBody.quaternion.set(0, 0, 0, 1);
