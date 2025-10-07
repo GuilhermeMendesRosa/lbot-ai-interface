@@ -165,8 +165,8 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       robotMaterial,
       groundMaterial,
       {
-        friction: 0.8,  // Boa tração
-        restitution: 0.1, // Pouco bounce
+        friction: 0.7,  // Boa tração mas não excessiva
+        restitution: 0.05, // Quase sem bounce
       }
     );
     
@@ -176,7 +176,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       defaultMaterial,
       {
         friction: 0.6,
-        restitution: 0.3,
+        restitution: 0.2,
       }
     );
     
@@ -228,15 +228,15 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     this.world.addBody(westWallBody);
 
     // Create robot physics body
-    const robotShape = new CANNON.Box(new CANNON.Vec3(10, 8, 15));
-    this.robotBody = new CANNON.Body({ mass: 10 }); // Massa real!
+    const robotShape = new CANNON.Box(new CANNON.Vec3(10, 6, 15)); // Altura média
+    this.robotBody = new CANNON.Body({ mass: 8 }); // Massa moderada
     this.robotBody.addShape(robotShape);
-    this.robotBody.position.set(0, 30, 0); // Começar alto para cair
+    this.robotBody.position.set(0, 30, 0);
     this.robotBody.material = new CANNON.Material('robot');
     
-    // Estabilização - impedir tombamento excessivo
-    this.robotBody.linearDamping = 0.4; // Amortecimento linear
-    this.robotBody.angularDamping = 0.8; // Amortecimento angular
+    // Amortecimento moderado - permitir movimento mas controlar instabilidade
+    this.robotBody.linearDamping = 0.3; // Permitir movimento
+    this.robotBody.angularDamping = 0.7; // Controlar rotação excessiva
     
     this.world.addBody(this.robotBody);
     
@@ -572,28 +572,23 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       // Step physics simulation
       this.world.step(this.timeStep);
       
-      // Estabilizar robô - manter na vertical mas permitir movimento físico
+      // Estabilização simples - apenas manter em pé
       if (!this.robotState.isAnimating) {
-        // Aplicar força estabilizadora para manter robô em pé
+        // Manter robô na vertical (estabilização leve)
         const upVector = new CANNON.Vec3(0, 1, 0);
         const robotUp = new CANNON.Vec3(0, 1, 0);
         this.robotBody.quaternion.vmult(robotUp, robotUp);
         
-        // Se o robô estiver muito inclinado, aplicar torque corretivo
         const dot = upVector.dot(robotUp);
-        if (dot < 0.8) {
+        if (dot < 0.9) {
           const correctionTorque = upVector.cross(robotUp);
-          correctionTorque.scale(50); // Força de correção
+          correctionTorque.scale(30); // Força moderada
           this.robotBody.applyTorque(correctionTorque);
         }
         
-        // Limitar velocidades excessivas
-        if (this.robotBody.velocity.length() > 20) {
-          this.robotBody.velocity.scale(0.9);
-        }
-        if (this.robotBody.angularVelocity.length() > 5) {
-          this.robotBody.angularVelocity.scale(0.9);
-        }
+        // Limitar rotações indesejadas levemente
+        this.robotBody.angularVelocity.x *= 0.8;
+        this.robotBody.angularVelocity.z *= 0.8;
       }
 
       // Sync robot visual with physics body
@@ -683,7 +678,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
           const radF = this.robotState.rotation * Math.PI / 180;
           const targetXF = this.robotState.x + Math.sin(radF) * distance;
           const targetZF = this.robotState.z + Math.cos(radF) * distance;
-          // Movimento com física real - sem validação prévia, deixar a física lidar com colisões
+          console.log(`Movendo para frente: de (${this.robotState.x.toFixed(1)}, ${this.robotState.z.toFixed(1)}) para (${targetXF.toFixed(1)}, ${targetZF.toFixed(1)})`);
           await this.animateMovement(targetXF, targetZF, distance);
           break;
 
@@ -800,51 +795,46 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       const startTime = Date.now();
       const duration = (distance / this.ROBOT_SPEED) * 1000;
       
-      // Calcular direção do movimento
-      const currentX = this.robotBody.position.x;
-      const currentZ = this.robotBody.position.z;
-      const dirX = targetX - currentX;
-      const dirZ = targetZ - currentZ;
-      const magnitude = Math.sqrt(dirX * dirX + dirZ * dirZ);
+      // Abordagem híbrida: mover diretamente mas aplicar forças para simular física
+      const startPos = this.robotBody.position.clone();
+      const targetPos = new CANNON.Vec3(targetX, this.robotBody.position.y, targetZ);
       
-      if (magnitude < 0.1) {
-        resolve();
-        return;
-      }
-      
-      // Normalizar direção
-      const normalizedDirX = dirX / magnitude;
-      const normalizedDirZ = dirZ / magnitude;
-      
-      // Força a ser aplicada
-      const forceStrength = 150; // Newton
-      const force = new CANNON.Vec3(
-        normalizedDirX * forceStrength,
-        0,
-        normalizedDirZ * forceStrength
-      );
-      
-      const applyForce = () => {
+      const animate = () => {
         const elapsed = Date.now() - startTime;
-        const progress = elapsed / duration;
+        const progress = Math.min(elapsed / duration, 1);
+        const easeProgress = progress < 0.5 ? 
+          2 * progress * progress : 
+          1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+        // Interpolar posição diretamente (mais confiável)
+        const currentPos = new CANNON.Vec3(
+          startPos.x + (targetPos.x - startPos.x) * easeProgress,
+          this.robotBody.position.y, // Manter Y atual (física controla altura)
+          startPos.z + (targetPos.z - startPos.z) * easeProgress
+        );
         
+        this.robotBody.position.x = currentPos.x;
+        this.robotBody.position.z = currentPos.z;
+        
+        // Limpar velocidades horizontais excessivas
+        this.robotBody.velocity.x *= 0.8;
+        this.robotBody.velocity.z *= 0.8;
+        
+        // Estabilizar rotação
+        this.robotBody.angularVelocity.x *= 0.5;
+        this.robotBody.angularVelocity.z *= 0.5;
+
         if (progress < 1) {
-          // Aplicar força gradualmente
-          const currentForce = force.clone();
-          currentForce.scale(1 - progress); // Diminuir força com o tempo
-          this.robotBody.applyForce(currentForce, this.robotBody.position);
-          
-          requestAnimationFrame(applyForce);
+          requestAnimationFrame(animate);
         } else {
-          // Parar o robô gradualmente
-          this.robotBody.velocity.x *= 0.8;
-          this.robotBody.velocity.z *= 0.8;
-          
-          setTimeout(resolve, 200); // Dar tempo para estabilizar
+          // Parar completamente
+          this.robotBody.velocity.x = 0;
+          this.robotBody.velocity.z = 0;
+          resolve();
         }
       };
       
-      applyForce();
+      animate();
     });
   }
 
@@ -852,32 +842,33 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     return new Promise(resolve => {
       const duration = (Math.abs(angle) / this.ROTATION_SPEED) * 1000;
       const startTime = Date.now();
+      const startRotation = this.robotState.rotation;
       
-      // Calcular torque necessário
-      const angleDiff = targetRotation - this.robotState.rotation;
-      const torqueStrength = 80; // Nm
-      
-      const applyTorque = () => {
+      const applyRotation = () => {
         const elapsed = Date.now() - startTime;
         const progress = elapsed / duration;
         
         if (progress < 1) {
-          // Aplicar torque
-          const torque = new CANNON.Vec3(0, angleDiff > 0 ? torqueStrength : -torqueStrength, 0);
-          torque.scale(1 - progress); // Diminuir torque com o tempo
-          this.robotBody.applyTorque(torque);
+          // Rotação direta via quaternion - sem torque
+          const currentRotation = startRotation + (targetRotation - startRotation) * progress;
+          const quaternion = new CANNON.Quaternion();
+          quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), currentRotation * Math.PI / 180);
+          this.robotBody.quaternion.copy(quaternion);
           
-          requestAnimationFrame(applyTorque);
+          // Zerar velocidades angulares indesejadas
+          this.robotBody.angularVelocity.x = 0;
+          this.robotBody.angularVelocity.z = 0;
+          this.robotBody.angularVelocity.y *= 0.8;
+          
+          requestAnimationFrame(applyRotation);
         } else {
-          // Parar rotação
-          this.robotBody.angularVelocity.y *= 0.1;
           this.robotState.rotation = targetRotation;
-          
+          this.robotBody.angularVelocity.set(0, 0, 0);
           setTimeout(resolve, 100);
         }
       };
       
-      applyTorque();
+      applyRotation();
     });
   }
 
