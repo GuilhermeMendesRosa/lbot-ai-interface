@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { SimulatorBridgeService, SimulatorCommand } from '../../services/simulator-bridge.service';
 import { Subscription } from 'rxjs';
 import * as THREE from 'three';
+import * as CANNON from 'cannon-es';
 
 interface RobotState {
   x: number;
@@ -60,6 +61,12 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   private robotGroup!: THREE.Group;
   private animationId?: number;
   
+  // Physics world
+  private world!: CANNON.World;
+  private robotBody!: CANNON.Body;
+  private obstacles: Array<{mesh: THREE.Mesh, body: CANNON.Body}> = [];
+  private timeStep = 1/60;
+  
   // Robot configuration constants
   private readonly ROBOT_SPEED = 30; // units per second
   private readonly ROTATION_SPEED = 90; // degrees per second
@@ -87,6 +94,9 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
   ngAfterViewInit(): void {
     this.initThreeJS();
+    this.initPhysics();
+    this.createPhysicsObjects();
+    this.createObstacles();
     this.startRenderLoop();
     this.setupEventListeners();
   }
@@ -130,6 +140,128 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     this.createGround();
     this.createArenaWalls();
     this.createRobot();
+  }
+
+  private initPhysics(): void {
+    // Create physics world
+    this.world = new CANNON.World();
+    this.world.gravity.set(0, -9.82, 0);
+    this.world.broadphase = new CANNON.NaiveBroadphase();
+    
+    // Configure contact material
+    const defaultMaterial = new CANNON.Material('default');
+    const defaultContactMaterial = new CANNON.ContactMaterial(
+      defaultMaterial,
+      defaultMaterial,
+      {
+        friction: 0.4,
+        restitution: 0.3,
+      }
+    );
+    this.world.addContactMaterial(defaultContactMaterial);
+    this.world.defaultContactMaterial = defaultContactMaterial;
+  }
+
+  private createPhysicsObjects(): void {
+    // Create ground physics body
+    const groundShape = new CANNON.Plane();
+    const groundBody = new CANNON.Body({ mass: 0 });
+    groundBody.addShape(groundShape);
+    groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+    this.world.addBody(groundBody);
+
+    // Create arena walls physics bodies
+    const wallThickness = 5;
+    const arenaSize = 400;
+    const wallHeight = 15;
+
+    // North wall
+    const northWallShape = new CANNON.Box(new CANNON.Vec3((arenaSize + wallThickness) / 2, wallHeight / 2, wallThickness / 2));
+    const northWallBody = new CANNON.Body({ mass: 0 });
+    northWallBody.addShape(northWallShape);
+    northWallBody.position.set(0, wallHeight / 2, arenaSize / 2 + wallThickness / 2);
+    this.world.addBody(northWallBody);
+
+    // South wall
+    const southWallShape = new CANNON.Box(new CANNON.Vec3((arenaSize + wallThickness) / 2, wallHeight / 2, wallThickness / 2));
+    const southWallBody = new CANNON.Body({ mass: 0 });
+    southWallBody.addShape(southWallShape);
+    southWallBody.position.set(0, wallHeight / 2, -arenaSize / 2 - wallThickness / 2);
+    this.world.addBody(southWallBody);
+
+    // East wall
+    const eastWallShape = new CANNON.Box(new CANNON.Vec3(wallThickness / 2, wallHeight / 2, arenaSize / 2));
+    const eastWallBody = new CANNON.Body({ mass: 0 });
+    eastWallBody.addShape(eastWallShape);
+    eastWallBody.position.set(arenaSize / 2 + wallThickness / 2, wallHeight / 2, 0);
+    this.world.addBody(eastWallBody);
+
+    // West wall
+    const westWallShape = new CANNON.Box(new CANNON.Vec3(wallThickness / 2, wallHeight / 2, arenaSize / 2));
+    const westWallBody = new CANNON.Body({ mass: 0 });
+    westWallBody.addShape(westWallShape);
+    westWallBody.position.set(-arenaSize / 2 - wallThickness / 2, wallHeight / 2, 0);
+    this.world.addBody(westWallBody);
+
+    // Create robot physics body
+    const robotShape = new CANNON.Box(new CANNON.Vec3(10, 10, 15));
+    this.robotBody = new CANNON.Body({ mass: 5 });
+    this.robotBody.addShape(robotShape);
+    this.robotBody.position.set(0, 10, 0);
+    this.robotBody.material = new CANNON.Material('robot');
+    this.world.addBody(this.robotBody);
+
+    // Lock robot rotation on X and Z axes (only allow Y rotation)
+    this.robotBody.fixedRotation = true;
+    this.robotBody.updateMassProperties();
+  }
+
+  private createObstacles(): void {
+    const obstacleConfigs = [
+      { x: 50, z: 50, type: 'box', size: { x: 15, y: 20, z: 15 }, color: 0xFF6B6B },
+      { x: -70, z: 80, type: 'cylinder', size: { radius: 12, height: 25 }, color: 0x4ECDC4 },
+      { x: 100, z: -60, type: 'box', size: { x: 20, y: 15, z: 25 }, color: 0x45B7D1 },
+      { x: -40, z: -100, type: 'box', size: { x: 10, y: 30, z: 10 }, color: 0x96CEB4 },
+      { x: -120, z: 20, type: 'cylinder', size: { radius: 8, height: 20 }, color: 0xFCEAA6 },
+      { x: 80, z: 120, type: 'box', size: { x: 25, y: 18, z: 15 }, color: 0xDDA0DD },
+      { x: 0, z: -150, type: 'cylinder', size: { radius: 15, height: 22 }, color: 0xF4A460 },
+      { x: -150, z: -50, type: 'box', size: { x: 12, y: 25, z: 18 }, color: 0x98D8C8 }
+    ];
+
+    obstacleConfigs.forEach(config => {
+      let geometry: THREE.BufferGeometry;
+      let shape: CANNON.Shape;
+
+      if (config.type === 'box') {
+        const { x, y, z } = config.size as { x: number, y: number, z: number };
+        geometry = new THREE.BoxGeometry(x, y, z);
+        shape = new CANNON.Box(new CANNON.Vec3(x / 2, y / 2, z / 2));
+      } else {
+        const { radius, height } = config.size as { radius: number, height: number };
+        geometry = new THREE.CylinderGeometry(radius, radius, height, 8);
+        shape = new CANNON.Cylinder(radius, radius, height, 8);
+      }
+
+      // Create Three.js mesh
+      const material = new THREE.MeshStandardMaterial({ 
+        color: config.color,
+        metalness: 0.3,
+        roughness: 0.7
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.position.set(config.x, (config.size as any).y ? (config.size as any).y / 2 : (config.size as any).height / 2, config.z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+
+      // Create Cannon.js body
+      const body = new CANNON.Body({ mass: 0 }); // Static obstacles
+      body.addShape(shape);
+      body.position.set(config.x, (config.size as any).y ? (config.size as any).y / 2 : (config.size as any).height / 2, config.z);
+      this.world.addBody(body);
+
+      this.obstacles.push({ mesh, body });
+    });
   }
 
   private setupLighting(): void {
@@ -400,6 +532,17 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     const animate = () => {
       this.animationId = requestAnimationFrame(animate);
 
+      // Step physics simulation
+      this.world.step(this.timeStep);
+
+      // Sync robot visual with physics body
+      this.robotGroup.position.copy(this.robotBody.position as any);
+      this.robotGroup.quaternion.copy(this.robotBody.quaternion as any);
+
+      // Update robot state from physics body
+      this.robotState.x = this.robotBody.position.x;
+      this.robotState.z = this.robotBody.position.z;
+
       // Camera controls
       if (this.isMouseDown) {
         this.camera.position.x = 200 * Math.cos(this.mouseX * Math.PI);
@@ -522,7 +665,27 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private isValidPosition(x: number, z: number): boolean {
-    return x >= -this.ARENA_LIMIT && x <= this.ARENA_LIMIT && z >= -this.ARENA_LIMIT && z <= this.ARENA_LIMIT;
+    // Check arena boundaries
+    if (x < -this.ARENA_LIMIT || x > this.ARENA_LIMIT || z < -this.ARENA_LIMIT || z > this.ARENA_LIMIT) {
+      return false;
+    }
+    
+    // Check collision with obstacles using physics
+    const testBody = new CANNON.Body({ mass: 0 });
+    const testShape = new CANNON.Box(new CANNON.Vec3(10, 10, 15));
+    testBody.addShape(testShape);
+    testBody.position.set(x, 10, z);
+    
+    // Simple collision check with obstacles
+    for (const obstacle of this.obstacles) {
+      const distance = testBody.position.distanceTo(obstacle.body.position);
+      const minDistance = 25; // Minimum safe distance
+      if (distance < minDistance) {
+        return false;
+      }
+    }
+    
+    return true;
   }
 
   private getMaxValidPosition(startX: number, startZ: number, targetX: number, targetZ: number) {
@@ -538,11 +701,12 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
   private animateMovement(targetX: number, targetZ: number, distance: number): Promise<void> {
     return new Promise(resolve => {
-      const startX = this.robotState.x;
-      const startZ = this.robotState.z;
-      const duration = (distance / this.ROBOT_SPEED) * 1000;
       const startTime = Date.now();
-
+      const duration = (distance / this.ROBOT_SPEED) * 1000;
+      
+      const startPos = this.robotBody.position.clone();
+      const targetPos = new CANNON.Vec3(targetX, this.robotBody.position.y, targetZ);
+      
       const animate = () => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / duration, 1);
@@ -550,27 +714,19 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
           4 * progress * progress * progress : 
           1 - Math.pow(-2 * progress + 2, 3) / 2;
 
-        this.robotState.x = startX + (targetX - startX) * easeProgress;
-        this.robotState.z = startZ + (targetZ - startZ) * easeProgress;
+        // Interpolate position
+        const currentPos = new CANNON.Vec3(
+          startPos.x + (targetPos.x - startPos.x) * easeProgress,
+          startPos.y,
+          startPos.z + (targetPos.z - startPos.z) * easeProgress
+        );
         
-        this.robotGroup.position.x = this.robotState.x;
-        this.robotGroup.position.z = this.robotState.z;
-
-        // Wheel animation
-        const wheelSpeed = 0.1 * (distance / 30);
-        this.robotGroup.children.forEach((child, index) => {
-          if (child instanceof THREE.Mesh && child.geometry instanceof THREE.CylinderGeometry && (index >= 8 && index <= 11)) {
-            child.rotation.x += wheelSpeed;
-          }
-        });
-
-        // Bouncing effect
-        this.robotGroup.position.y = Math.sin(elapsed * 0.01) * 0.5;
+        this.robotBody.position.copy(currentPos);
+        this.robotBody.velocity.set(0, 0, 0); // Stop any residual velocity
 
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
-          this.robotGroup.position.y = 0;
           resolve();
         }
       };
@@ -592,15 +748,15 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
           1 - Math.pow(-2 * progress + 2, 3) / 2;
 
         this.robotState.rotation = startRotation + (targetRotation - startRotation) * easeProgress;
-        this.robotGroup.rotation.y = this.robotState.rotation * Math.PI / 180;
-
-        // Tilting effect during rotation
-        this.robotGroup.rotation.z = Math.sin(progress * Math.PI) * 0.05;
+        
+        // Update physics body rotation
+        const quaternion = new CANNON.Quaternion();
+        quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), this.robotState.rotation * Math.PI / 180);
+        this.robotBody.quaternion.copy(quaternion);
 
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
-          this.robotGroup.rotation.z = 0;
           resolve();
         }
       };
@@ -612,8 +768,13 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     this.robotState.x = 0;
     this.robotState.z = 0;
     this.robotState.rotation = 0;
-    this.robotGroup.position.set(0, 0, 0);
-    this.robotGroup.rotation.set(0, 0, 0);
+    
+    // Reset physics body
+    this.robotBody.position.set(0, 10, 0);
+    this.robotBody.velocity.set(0, 0, 0);
+    this.robotBody.angularVelocity.set(0, 0, 0);
+    this.robotBody.quaternion.set(0, 0, 0, 1);
+    
     this.currentCommand = '-';
   }
 
