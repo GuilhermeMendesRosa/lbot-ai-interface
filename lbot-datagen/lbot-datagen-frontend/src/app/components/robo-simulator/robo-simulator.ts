@@ -47,6 +47,13 @@ interface ParsedCommand {
       </div>
       <div class="error" [style.display]="errorMessage ? 'block' : 'none'" [textContent]="errorMessage">
       </div>
+      <div class="debug" style="position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-size: 12px;">
+        <div>🎯 Obstáculos: {{obstacles.length}}</div>
+        <div>📍 Posição: ({{robotState.x.toFixed(1)}}, {{robotState.z.toFixed(1)}})</div>
+        <div>⚡ Física: ATIVA</div>
+        <div>🌍 Gravidade: -9.82 m/s²</div>
+        <div>⚖️ Massa: 10kg</div>
+      </div>
     </div>
   `,
   styleUrls: ['./robo-simulator.css']
@@ -64,7 +71,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   // Physics world
   private world!: CANNON.World;
   private robotBody!: CANNON.Body;
-  private obstacles: Array<{mesh: THREE.Mesh, body: CANNON.Body}> = [];
+  obstacles: Array<{mesh: THREE.Mesh, body: CANNON.Body}> = []; // Public para debug
   private timeStep = 1/60;
   
   // Robot configuration constants
@@ -145,21 +152,37 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   private initPhysics(): void {
     // Create physics world
     this.world = new CANNON.World();
-    this.world.gravity.set(0, 0, 0); // Desabilitando gravidade por enquanto
+    this.world.gravity.set(0, -9.82, 0); // Gravidade real!
     this.world.broadphase = new CANNON.NaiveBroadphase();
     
     // Configure contact material
     const defaultMaterial = new CANNON.Material('default');
-    const defaultContactMaterial = new CANNON.ContactMaterial(
-      defaultMaterial,
+    const robotMaterial = new CANNON.Material('robot');
+    const groundMaterial = new CANNON.Material('ground');
+    
+    // Robot-ground contact
+    const robotGroundContact = new CANNON.ContactMaterial(
+      robotMaterial,
+      groundMaterial,
+      {
+        friction: 0.8,  // Boa tração
+        restitution: 0.1, // Pouco bounce
+      }
+    );
+    
+    // Robot-obstacle contact
+    const robotObstacleContact = new CANNON.ContactMaterial(
+      robotMaterial,
       defaultMaterial,
       {
-        friction: 0.4,
+        friction: 0.6,
         restitution: 0.3,
       }
     );
-    this.world.addContactMaterial(defaultContactMaterial);
-    this.world.defaultContactMaterial = defaultContactMaterial;
+    
+    this.world.addContactMaterial(robotGroundContact);
+    this.world.addContactMaterial(robotObstacleContact);
+    this.world.defaultContactMaterial = robotObstacleContact;
   }
 
   private createPhysicsObjects(): void {
@@ -168,6 +191,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     const groundBody = new CANNON.Body({ mass: 0 });
     groundBody.addShape(groundShape);
     groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2);
+    groundBody.material = new CANNON.Material('ground');
     this.world.addBody(groundBody);
 
     // Create arena walls physics bodies
@@ -204,16 +228,22 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     this.world.addBody(westWallBody);
 
     // Create robot physics body
-    const robotShape = new CANNON.Box(new CANNON.Vec3(10, 10, 15));
-    this.robotBody = new CANNON.Body({ mass: 0 }); // Massa 0 = estático
+    const robotShape = new CANNON.Box(new CANNON.Vec3(10, 8, 15));
+    this.robotBody = new CANNON.Body({ mass: 10 }); // Massa real!
     this.robotBody.addShape(robotShape);
-    this.robotBody.position.set(0, 0, 0); // Posicionando no nível do chão
+    this.robotBody.position.set(0, 30, 0); // Começar alto para cair
     this.robotBody.material = new CANNON.Material('robot');
+    
+    // Estabilização - impedir tombamento excessivo
+    this.robotBody.linearDamping = 0.4; // Amortecimento linear
+    this.robotBody.angularDamping = 0.8; // Amortecimento angular
+    
     this.world.addBody(this.robotBody);
-
-    // Prevent any physics movement
-    this.robotBody.type = CANNON.Body.KINEMATIC;
-    this.robotBody.updateMassProperties();
+    
+    // Adicionar restrições para manter robô estavel (mas não rígido)
+    this.robotBody.addEventListener('collide', (e: any) => {
+      console.log('Robô colidiu com:', e.target === this.robotBody ? e.body : e.target);
+    });
   }
 
   private createObstacles(): void {
@@ -262,6 +292,13 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
       this.obstacles.push({ mesh, body });
     });
+    
+    // Debug: Log obstacle positions
+    console.log('Obstáculos criados:', this.obstacles.map(obs => ({
+      x: obs.body.position.x,
+      z: obs.body.position.z,
+      shape: obs.body.shapes[0].constructor.name
+    })));
   }
 
   private setupLighting(): void {
@@ -534,17 +571,43 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
       // Step physics simulation
       this.world.step(this.timeStep);
+      
+      // Estabilizar robô - manter na vertical mas permitir movimento físico
+      if (!this.robotState.isAnimating) {
+        // Aplicar força estabilizadora para manter robô em pé
+        const upVector = new CANNON.Vec3(0, 1, 0);
+        const robotUp = new CANNON.Vec3(0, 1, 0);
+        this.robotBody.quaternion.vmult(robotUp, robotUp);
+        
+        // Se o robô estiver muito inclinado, aplicar torque corretivo
+        const dot = upVector.dot(robotUp);
+        if (dot < 0.8) {
+          const correctionTorque = upVector.cross(robotUp);
+          correctionTorque.scale(50); // Força de correção
+          this.robotBody.applyTorque(correctionTorque);
+        }
+        
+        // Limitar velocidades excessivas
+        if (this.robotBody.velocity.length() > 20) {
+          this.robotBody.velocity.scale(0.9);
+        }
+        if (this.robotBody.angularVelocity.length() > 5) {
+          this.robotBody.angularVelocity.scale(0.9);
+        }
+      }
 
       // Sync robot visual with physics body
       this.robotGroup.position.copy(this.robotBody.position as any);
       this.robotGroup.quaternion.copy(this.robotBody.quaternion as any);
-      
-      // Garantir que o robô esteja sempre na altura correta
-      this.robotGroup.position.y = 0;
 
       // Update robot state from physics body
       this.robotState.x = this.robotBody.position.x;
       this.robotState.z = this.robotBody.position.z;
+      
+      // Calcular rotação Y a partir do quaternion
+      const euler = new CANNON.Vec3();
+      this.robotBody.quaternion.toEuler(euler);
+      this.robotState.rotation = euler.y * 180 / Math.PI;
 
       // Camera controls
       if (this.isMouseDown) {
@@ -620,20 +683,15 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
           const radF = this.robotState.rotation * Math.PI / 180;
           const targetXF = this.robotState.x + Math.sin(radF) * distance;
           const targetZF = this.robotState.z + Math.cos(radF) * distance;
-          const resultF = this.getMaxValidPosition(this.robotState.x, this.robotState.z, targetXF, targetZF);
-          const actualDistanceF = Math.sqrt(Math.pow(resultF.x - this.robotState.x, 2) + Math.pow(resultF.z - this.robotState.z, 2));
-          await this.animateMovement(resultF.x, resultF.z, actualDistanceF);
-          if (resultF.blocked) this.showError('Barreira atingida!');
+          // Movimento com física real - sem validação prévia, deixar a física lidar com colisões
+          await this.animateMovement(targetXF, targetZF, distance);
           break;
 
         case 'B':
           const radB = this.robotState.rotation * Math.PI / 180;
           const targetXB = this.robotState.x - Math.sin(radB) * distance;
           const targetZB = this.robotState.z - Math.cos(radB) * distance;
-          const resultB = this.getMaxValidPosition(this.robotState.x, this.robotState.z, targetXB, targetZB);
-          const actualDistanceB = Math.sqrt(Math.pow(resultB.x - this.robotState.x, 2) + Math.pow(resultB.z - this.robotState.z, 2));
-          await this.animateMovement(resultB.x, resultB.z, actualDistanceB);
-          if (resultB.blocked) this.showError('Barreira atingida!');
+          await this.animateMovement(targetXB, targetZB, distance);
           break;
 
         case 'L':
@@ -642,10 +700,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
           const radL = this.robotState.rotation * Math.PI / 180;
           const targetXL = this.robotState.x + Math.sin(radL) * distance;
           const targetZL = this.robotState.z + Math.cos(radL) * distance;
-          const resultL = this.getMaxValidPosition(this.robotState.x, this.robotState.z, targetXL, targetZL);
-          const actualDistanceL = Math.sqrt(Math.pow(resultL.x - this.robotState.x, 2) + Math.pow(resultL.z - this.robotState.z, 2));
-          await this.animateMovement(resultL.x, resultL.z, actualDistanceL);
-          if (resultL.blocked) this.showError('Barreira atingida!');
+          await this.animateMovement(targetXL, targetZL, distance);
           break;
 
         case 'R':
@@ -654,10 +709,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
           const radR = this.robotState.rotation * Math.PI / 180;
           const targetXR = this.robotState.x + Math.sin(radR) * distance;
           const targetZR = this.robotState.z + Math.cos(radR) * distance;
-          const resultR = this.getMaxValidPosition(this.robotState.x, this.robotState.z, targetXR, targetZR);
-          const actualDistanceR = Math.sqrt(Math.pow(resultR.x - this.robotState.x, 2) + Math.pow(resultR.z - this.robotState.z, 2));
-          await this.animateMovement(resultR.x, resultR.z, actualDistanceR);
-          if (resultR.blocked) this.showError('Barreira atingida!');
+          await this.animateMovement(targetXR, targetZR, distance);
           break;
       }
     } else if (cmd.type === 'R') {
@@ -674,13 +726,35 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     }
     
     // Check collision with obstacles using physics
-    const testPosition = new CANNON.Vec3(x, 0, z); // Sempre no nível do chão
+    const testPosition = new CANNON.Vec3(x, 0, z);
     
-    // Simple collision check with obstacles
+    // Robot size (half extents)
+    const robotHalfWidth = 10;
+    const robotHalfDepth = 15;
+    
+    // Check collision with each obstacle
     for (const obstacle of this.obstacles) {
-      const distance = testPosition.distanceTo(obstacle.body.position);
-      const minDistance = 25; // Minimum safe distance
+      // Get obstacle position (on ground level for comparison)
+      const obstaclePos = new CANNON.Vec3(obstacle.body.position.x, 0, obstacle.body.position.z);
+      
+      // Calculate distance between robot center and obstacle center
+      const distance = testPosition.distanceTo(obstaclePos);
+      
+      // Determine minimum safe distance based on obstacle shape
+      let minDistance = 30; // Default safe distance
+      
+      // Get obstacle dimensions from the shape
+      if (obstacle.body.shapes[0] instanceof CANNON.Box) {
+        const boxShape = obstacle.body.shapes[0] as CANNON.Box;
+        const obstacleRadius = Math.max(boxShape.halfExtents.x, boxShape.halfExtents.z);
+        minDistance = robotHalfWidth + obstacleRadius + 5; // Robot radius + obstacle radius + safety margin
+      } else if (obstacle.body.shapes[0] instanceof CANNON.Cylinder) {
+        const cylinderShape = obstacle.body.shapes[0] as CANNON.Cylinder;
+        minDistance = robotHalfWidth + cylinderShape.radiusTop + 5;
+      }
+      
       if (distance < minDistance) {
+        console.log(`Colisão detectada! Distância: ${distance.toFixed(1)}, Mínimo: ${minDistance.toFixed(1)}`);
         return false;
       }
     }
@@ -689,14 +763,36 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private getMaxValidPosition(startX: number, startZ: number, targetX: number, targetZ: number) {
+    // First check if target position is completely valid
     if (this.isValidPosition(targetX, targetZ)) {
       return { x: targetX, z: targetZ, blocked: false };
     }
     
-    const maxX = Math.max(-this.ARENA_LIMIT, Math.min(this.ARENA_LIMIT, targetX));
-    const maxZ = Math.max(-this.ARENA_LIMIT, Math.min(this.ARENA_LIMIT, targetZ));
+    console.log(`Movimento bloqueado de (${startX.toFixed(1)}, ${startZ.toFixed(1)}) para (${targetX.toFixed(1)}, ${targetZ.toFixed(1)})`);
     
-    return { x: maxX, z: maxZ, blocked: true };
+    // If not valid, try to find the closest valid position along the path
+    const stepSize = 5; // Check every 5 units
+    const totalDistance = Math.sqrt(Math.pow(targetX - startX, 2) + Math.pow(targetZ - startZ, 2));
+    const steps = Math.floor(totalDistance / stepSize);
+    
+    if (steps === 0) {
+      // Target is too close, stay at current position
+      return { x: startX, z: startZ, blocked: true };
+    }
+    
+    // Check intermediate positions
+    for (let i = steps; i > 0; i--) {
+      const progress = i / steps;
+      const testX = startX + (targetX - startX) * progress;
+      const testZ = startZ + (targetZ - startZ) * progress;
+      
+      if (this.isValidPosition(testX, testZ)) {
+        return { x: testX, z: testZ, blocked: true };
+      }
+    }
+    
+    // If no valid intermediate position found, stay at start
+    return { x: startX, z: startZ, blocked: true };
   }
 
   private animateMovement(targetX: number, targetZ: number, distance: number): Promise<void> {
@@ -704,62 +800,84 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       const startTime = Date.now();
       const duration = (distance / this.ROBOT_SPEED) * 1000;
       
-      const startPos = this.robotBody.position.clone();
-      const targetPos = new CANNON.Vec3(targetX, 0, targetZ); // Sempre no nível do chão
+      // Calcular direção do movimento
+      const currentX = this.robotBody.position.x;
+      const currentZ = this.robotBody.position.z;
+      const dirX = targetX - currentX;
+      const dirZ = targetZ - currentZ;
+      const magnitude = Math.sqrt(dirX * dirX + dirZ * dirZ);
       
-      const animate = () => {
+      if (magnitude < 0.1) {
+        resolve();
+        return;
+      }
+      
+      // Normalizar direção
+      const normalizedDirX = dirX / magnitude;
+      const normalizedDirZ = dirZ / magnitude;
+      
+      // Força a ser aplicada
+      const forceStrength = 150; // Newton
+      const force = new CANNON.Vec3(
+        normalizedDirX * forceStrength,
+        0,
+        normalizedDirZ * forceStrength
+      );
+      
+      const applyForce = () => {
         const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easeProgress = progress < 0.5 ? 
-          4 * progress * progress * progress : 
-          1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-        // Interpolate position
-        const currentPos = new CANNON.Vec3(
-          startPos.x + (targetPos.x - startPos.x) * easeProgress,
-          0, // Sempre no chão
-          startPos.z + (targetPos.z - startPos.z) * easeProgress
-        );
+        const progress = elapsed / duration;
         
-        this.robotBody.position.copy(currentPos);
-
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          // Aplicar força gradualmente
+          const currentForce = force.clone();
+          currentForce.scale(1 - progress); // Diminuir força com o tempo
+          this.robotBody.applyForce(currentForce, this.robotBody.position);
+          
+          requestAnimationFrame(applyForce);
         } else {
-          resolve();
+          // Parar o robô gradualmente
+          this.robotBody.velocity.x *= 0.8;
+          this.robotBody.velocity.z *= 0.8;
+          
+          setTimeout(resolve, 200); // Dar tempo para estabilizar
         }
       };
-      animate();
+      
+      applyForce();
     });
   }
 
   private animateRotation(targetRotation: number, angle: number): Promise<void> {
     return new Promise(resolve => {
-      const startRotation = this.robotState.rotation;
       const duration = (Math.abs(angle) / this.ROTATION_SPEED) * 1000;
       const startTime = Date.now();
-
-      const animate = () => {
+      
+      // Calcular torque necessário
+      const angleDiff = targetRotation - this.robotState.rotation;
+      const torqueStrength = 80; // Nm
+      
+      const applyTorque = () => {
         const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easeProgress = progress < 0.5 ? 
-          4 * progress * progress * progress : 
-          1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-        this.robotState.rotation = startRotation + (targetRotation - startRotation) * easeProgress;
+        const progress = elapsed / duration;
         
-        // Update physics body rotation
-        const quaternion = new CANNON.Quaternion();
-        quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), this.robotState.rotation * Math.PI / 180);
-        this.robotBody.quaternion.copy(quaternion);
-
         if (progress < 1) {
-          requestAnimationFrame(animate);
+          // Aplicar torque
+          const torque = new CANNON.Vec3(0, angleDiff > 0 ? torqueStrength : -torqueStrength, 0);
+          torque.scale(1 - progress); // Diminuir torque com o tempo
+          this.robotBody.applyTorque(torque);
+          
+          requestAnimationFrame(applyTorque);
         } else {
-          resolve();
+          // Parar rotação
+          this.robotBody.angularVelocity.y *= 0.1;
+          this.robotState.rotation = targetRotation;
+          
+          setTimeout(resolve, 100);
         }
       };
-      animate();
+      
+      applyTorque();
     });
   }
 
@@ -769,7 +887,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     this.robotState.rotation = 0;
     
     // Reset physics body
-    this.robotBody.position.set(0, 0, 0); // Sempre no chão
+    this.robotBody.position.set(0, 30, 0); // Cair do alto
     this.robotBody.velocity.set(0, 0, 0);
     this.robotBody.angularVelocity.set(0, 0, 0);
     this.robotBody.quaternion.set(0, 0, 0, 1);
@@ -779,6 +897,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
   private showError(message = 'Comando inválido!'): void {
     this.errorMessage = message;
+    console.log('Erro no simulador:', message);
     setTimeout(() => {
       this.errorMessage = '';
     }, 2000);
