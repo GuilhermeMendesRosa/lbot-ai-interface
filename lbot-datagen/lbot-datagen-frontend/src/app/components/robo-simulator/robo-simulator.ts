@@ -137,7 +137,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
     // Camera setup
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1500);
-    this.camera.position.set(150, 200, 300);
+    this.camera.position.set(120, 160, 240);
     this.camera.lookAt(0, 0, 0);
 
     // Renderer setup
@@ -158,7 +158,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   private initPhysics(): void {
     // Create physics world
     this.world = new CANNON.World();
-    this.world.gravity.set(0, -9.82, 0); // Gravidade real!
+    this.world.gravity.set(0, -9.81, 0); // Gravidade da Terra (9.81 m/s²)
     this.world.broadphase = new CANNON.NaiveBroadphase();
     
     // Configure contact material
@@ -171,8 +171,8 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       robotMaterial,
       groundMaterial,
       {
-        friction: 0.7,  // Boa tração mas não excessiva
-        restitution: 0.05, // Quase sem bounce
+        friction: 0.9,  // Alta tração = não desliza
+        restitution: 0.0, // Zero bounce = não quica
       }
     );
     
@@ -181,8 +181,8 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       robotMaterial,
       defaultMaterial,
       {
-        friction: 0.6,
-        restitution: 0.2,
+        friction: 0.8,
+        restitution: 0.0, // Sem bounce em obstáculos
       }
     );
     
@@ -235,14 +235,14 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
     // Create robot physics body
     const robotShape = new CANNON.Box(new CANNON.Vec3(10, 6, 15)); // Altura média
-    this.robotBody = new CANNON.Body({ mass: 8 }); // Massa moderada
+    this.robotBody = new CANNON.Body({ mass: 100 }); // Massa bem alta = cai rápido
     this.robotBody.addShape(robotShape);
     this.robotBody.position.set(0, 6, 0); // Centro do corpo físico - altura da caixa
     this.robotBody.material = new CANNON.Material('robot');
     
-    // Amortecimento moderado - permitir movimento mas controlar instabilidade
-    this.robotBody.linearDamping = 0.3; // Permitir movimento
-    this.robotBody.angularDamping = 0.7; // Controlar rotação excessiva
+    // Amortecimento mínimo para queda natural
+    this.robotBody.linearDamping = 0.05; // Baixo = cai naturalmente rápido
+    this.robotBody.angularDamping = 0.99; // Alto = não gira
     
     this.world.addBody(this.robotBody);
     
@@ -661,23 +661,33 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       // Step physics simulation
       this.world.step(this.timeStep);
       
-      // Estabilização simples - apenas manter em pé
+      // Estabilização e controle de física
       if (!this.robotState.isAnimating) {
-        // Manter robô na vertical (estabilização leve)
+        // Forçar orientação vertical
         const upVector = new CANNON.Vec3(0, 1, 0);
         const robotUp = new CANNON.Vec3(0, 1, 0);
         this.robotBody.quaternion.vmult(robotUp, robotUp);
         
         const dot = upVector.dot(robotUp);
-        if (dot < 0.9) {
+        if (dot < 0.99) {
           const correctionTorque = upVector.cross(robotUp);
-          correctionTorque.scale(30); // Força moderada
+          correctionTorque.scale(200); // Força muito alta para correção instantânea
           this.robotBody.applyTorque(correctionTorque);
         }
         
-        // Limitar rotações indesejadas levemente
-        this.robotBody.angularVelocity.x *= 0.8;
-        this.robotBody.angularVelocity.z *= 0.8;
+        // Zerar rotações indesejadas completamente
+        this.robotBody.angularVelocity.x = 0;
+        this.robotBody.angularVelocity.z = 0;
+        
+        // Limitar velocidade vertical para cima (evitar saltos), mas permitir queda rápida
+        if (this.robotBody.velocity.y > 0.5) {
+          this.robotBody.velocity.y = 0.5;
+        }
+        
+        // Forçar robô para baixo rapidamente se estiver no ar
+        if (this.robotBody.position.y > 7) {
+          this.robotBody.velocity.y -= 2; // Acelerar queda
+        }
       }
 
       // Sync robot visual with physics body
@@ -695,9 +705,9 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
       // Camera controls
       if (this.isMouseDown) {
-        this.camera.position.x = 200 * Math.cos(this.mouseX * Math.PI);
-        this.camera.position.z = 350 * Math.sin(this.mouseX * Math.PI);
-        this.camera.position.y = 200 + this.mouseY * 100;
+        this.camera.position.x = 160 * Math.cos(this.mouseX * Math.PI);
+        this.camera.position.z = 280 * Math.sin(this.mouseX * Math.PI);
+        this.camera.position.y = 160 + this.mouseY * 80;
         this.camera.lookAt(this.robotGroup.position);
       }
 
