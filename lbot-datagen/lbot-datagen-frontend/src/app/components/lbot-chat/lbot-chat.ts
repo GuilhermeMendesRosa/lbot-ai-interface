@@ -40,11 +40,6 @@ export class LbotChat implements OnInit, OnDestroy {
   // ID do chat atual
   chatId = '';
 
-  // Controles para long press e mostrar reações
-  showingReactionsFor: string | null = null;
-  longPressTimer: any = null;
-  longPressDelay = 500; // 500ms para ativar
-
   constructor(private messagesService: MessagesService, private simulatorBridge: SimulatorBridgeService) { }
 
   ngOnInit(): void {
@@ -119,45 +114,23 @@ export class LbotChat implements OnInit, OnDestroy {
     });
   }
 
-  // Métodos para controlar long press
-  startLongPress(messageId: string, event: MouseEvent | TouchEvent): void {
-    event.preventDefault();
-    this.clearLongPress();
-    
-    this.longPressTimer = setTimeout(() => {
-      this.showingReactionsFor = messageId;
-    }, this.longPressDelay);
+  // Método para retornar o título da estrela
+  getStarTitle(star: number): string {
+    const titles = [
+      'Muito ruim',
+      'Ruim',
+      'Ok',
+      'Bom',
+      'Excelente'
+    ];
+    return titles[star - 1] || 'Avaliar';
   }
 
-  endLongPress(event: MouseEvent | TouchEvent): void {
-    event.preventDefault();
-    this.clearLongPress();
-  }
-
-  clearLongPress(): void {
-    if (this.longPressTimer) {
-      clearTimeout(this.longPressTimer);
-      this.longPressTimer = null;
-    }
-  }
-
-  hideReactions(): void {
-    this.showingReactionsFor = null;
-  }
-
-  // Verificar se deve mostrar reações para uma mensagem específica
-  shouldShowReactions(messageId: string): boolean {
-    return this.showingReactionsFor === messageId;
-  }
-
-  // Novo método para avaliação rápida com reações
+  // Método para avaliação com estrelas
   quickRate(messageId: string, rating: number, event?: MouseEvent | TouchEvent): void {
     if (event) {
       event.stopPropagation();
     }
-
-    // Esconder as reações imediatamente após avaliar
-    this.hideReactions();
 
     // Encontrar a mensagem e marcá-la como avaliada
     const message = this.messages.find(m => m.messageId === messageId);
@@ -271,8 +244,6 @@ export class LbotChat implements OnInit, OnDestroy {
     this.observation = '';
     this.ratings = [];
     this.chatId = '';
-    this.showingReactionsFor = null;
-    this.clearLongPress();
 
     // Inicializar um novo chat
     this.initializeChat();
@@ -296,7 +267,6 @@ export class LbotChat implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    // Limpar timer de long press se o componente for destruído
-    this.clearLongPress();
+    // Cleanup se necessário
   }
 }

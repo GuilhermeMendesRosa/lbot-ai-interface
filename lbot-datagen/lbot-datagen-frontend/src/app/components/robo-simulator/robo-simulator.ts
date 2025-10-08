@@ -42,6 +42,9 @@ interface ParsedCommand {
           <span class="status-value" [textContent]="currentCommand"></span>
         </div>
       </div>
+      <button class="reset-button" (click)="resetRobot()" [disabled]="robotState.isAnimating">
+        🔄 Resetar Posição
+      </button>
       <div class="indicator" [style.display]="robotState.isAnimating ? 'block' : 'none'">
         EXECUTANDO...
       </div>
@@ -971,7 +974,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     });
   }
 
-  private resetRobot(): void {
+  resetRobot(): void {
     this.robotState.x = 0;
     this.robotState.z = 0;
     this.robotState.rotation = 0;

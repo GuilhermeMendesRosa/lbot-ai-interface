@@ -8,58 +8,38 @@
   </div>
 
   <div class="chat-container">
-  <div class="chat-messages" (click)="hideReactions()">
+  <div class="chat-messages">
     <div *ngFor="let message of messages" class="message" [ngClass]="message.type">
-      <!-- Container da mensagem do bot com long press -->
-      <div *ngIf="message.type === 'bot' && message.messageId && !message.rated" 
-           class="bot-message-container"
-           (mousedown)="startLongPress(message.messageId!, $event)"
-           (mouseup)="endLongPress($event)"
-           (mouseleave)="endLongPress($event)"
-           (touchstart)="startLongPress(message.messageId!, $event)"
-           (touchend)="endLongPress($event)"
-           (touchcancel)="endLongPress($event)"
-           (click)="$event.stopPropagation()">
-        
+      <!-- Mensagem do usuário ou erro -->
+      <div *ngIf="message.type !== 'bot'" class="message-content">
+        {{ message.text }}
+      </div>
+      
+      <!-- Mensagem do bot com avaliação por estrelas -->
+      <div *ngIf="message.type === 'bot'" class="bot-message-container">
         <div class="message-content">
           {{ message.text }}
         </div>
         
-        <!-- Hint visual para indicar que pode avaliar -->
-        <div class="evaluation-hint">
-          <span class="hint-text">Segure para avaliar</span>
-          <span class="hint-icon">👆</span>
+        <!-- Estrelas de avaliação (sempre visíveis se não foi avaliado) -->
+        <div *ngIf="message.messageId && !message.rated" class="star-rating">
+          <button class="star-btn" 
+                  *ngFor="let star of [1, 2, 3, 4, 5]" 
+                  (click)="quickRate(message.messageId!, star, $event)"
+                  [title]="getStarTitle(star)">
+            ⭐
+          </button>
         </div>
         
-        <!-- Botões de reação (mostrados apenas durante long press) -->
-        <div *ngIf="shouldShowReactions(message.messageId!)" class="reaction-buttons">
-          <button class="reaction-btn" (click)="quickRate(message.messageId!, 1, $event)" title="Muito ruim">
-            😞
-          </button>
-          <button class="reaction-btn" (click)="quickRate(message.messageId!, 2, $event)" title="Ruim">
-            😐
-          </button>
-          <button class="reaction-btn" (click)="quickRate(message.messageId!, 3, $event)" title="Ok">
-            😊
-          </button>
-          <button class="reaction-btn" (click)="quickRate(message.messageId!, 4, $event)" title="Bom">
-            😄
-          </button>
-          <button class="reaction-btn" (click)="quickRate(message.messageId!, 5, $event)" title="Excelente">
-            🤩
-          </button>
+        <!-- Mostrar avaliação selecionada -->
+        <div *ngIf="message.messageId && message.rated" class="selected-rating">
+          <span class="rating-stars">
+            <span *ngFor="let star of [1, 2, 3, 4, 5]" class="star-display" [class.filled]="star <= message.rating!">
+              ⭐
+            </span>
+          </span>
+          <span class="rating-text">Avaliado ({{ message.rating }}/5)</span>
         </div>
-      </div>
-      
-      <!-- Mensagens sem long press (user, error, bot já avaliado) -->
-      <div *ngIf="!(message.type === 'bot' && message.messageId && !message.rated)" class="message-content">
-        {{ message.text }}
-      </div>
-      
-      <!-- Mostrar reação selecionada -->
-      <div *ngIf="message.type === 'bot' && message.messageId && message.rated" class="selected-rating">
-        <span class="rating-emoji">{{ getRatingEmoji(message.rating!) }}</span>
-        <span class="rating-text">Avaliado</span>
       </div>
     </div>
 

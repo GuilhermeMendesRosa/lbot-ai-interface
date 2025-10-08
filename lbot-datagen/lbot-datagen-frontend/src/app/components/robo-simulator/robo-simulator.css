@@ -40,6 +40,45 @@
   font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
+.reset-button {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+  color: #fff;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(46, 125, 50, 0.3);
+  transition: all 0.3s ease;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reset-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #388e3c, #2e7d32);
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 20px rgba(46, 125, 50, 0.4);
+}
+
+.reset-button:active:not(:disabled) {
+  transform: translateX(-50%) translateY(0);
+  box-shadow: 0 2px 8px rgba(46, 125, 50, 0.3);
+}
+
+.reset-button:disabled {
+  background: #9e9e9e;
+  cursor: not-allowed;
+  opacity: 0.6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 .indicator {
   position: absolute;
   top: 12px;
