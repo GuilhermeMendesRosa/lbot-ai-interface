@@ -253,58 +253,123 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private createObstacles(): void {
-    const obstacleConfigs = [
-      { x: 50, z: 50, type: 'box', size: { x: 15, y: 20, z: 15 }, color: 0xFF6B6B },
-      { x: -70, z: 80, type: 'cylinder', size: { radius: 12, height: 25 }, color: 0x4ECDC4 },
-      { x: 100, z: -60, type: 'box', size: { x: 20, y: 15, z: 25 }, color: 0x45B7D1 },
-      { x: -40, z: -100, type: 'box', size: { x: 10, y: 30, z: 10 }, color: 0x96CEB4 },
-      { x: -120, z: 20, type: 'cylinder', size: { radius: 8, height: 20 }, color: 0xFCEAA6 },
-      { x: 80, z: 120, type: 'box', size: { x: 25, y: 18, z: 15 }, color: 0xDDA0DD },
-      { x: 0, z: -150, type: 'cylinder', size: { radius: 15, height: 22 }, color: 0xF4A460 },
-      { x: -150, z: -50, type: 'box', size: { x: 12, y: 25, z: 18 }, color: 0x98D8C8 }
+    const woodMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xD2691E,
+      roughness: 0.85,
+      metalness: 0.1
+    });
+    
+    const darkWoodMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x8B4513,
+      roughness: 0.9,
+      metalness: 0.05
+    });
+
+    const lightWoodMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xDEB887,
+      roughness: 0.8,
+      metalness: 0.1
+    });
+
+    // ==== LABIRINTO DE PAREDES (SIMPLIFICADO) ====
+    const mazeWalls = [
+      // Paredes criando zonas
+      { x: -100, z: 80, width: 6, height: 18, depth: 100 },
+      { x: 100, z: 80, width: 6, height: 18, depth: 100 },
+      { x: -100, z: -80, width: 6, height: 18, depth: 100 },
+      { x: 100, z: -80, width: 6, height: 18, depth: 100 },
+      
+      // Paredes horizontais
+      { x: 0, z: 100, width: 80, height: 18, depth: 6 },
+      { x: 0, z: -100, width: 80, height: 18, depth: 6 },
     ];
 
-    obstacleConfigs.forEach(config => {
-      let geometry: THREE.BufferGeometry;
-      let shape: CANNON.Shape;
-
-      if (config.type === 'box') {
-        const { x, y, z } = config.size as { x: number, y: number, z: number };
-        geometry = new THREE.BoxGeometry(x, y, z);
-        shape = new CANNON.Box(new CANNON.Vec3(x / 2, y / 2, z / 2));
-      } else {  
-        const { radius, height } = config.size as { radius: number, height: number };
-        geometry = new THREE.CylinderGeometry(radius, radius, height, 8);
-        shape = new CANNON.Cylinder(radius, radius, height, 8);
-      }
-
-      // Create Three.js mesh
-      const material = new THREE.MeshStandardMaterial({ 
-        color: config.color,
-        metalness: 0.3,
-        roughness: 0.7
-      });
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.position.set(config.x, (config.size as any).y ? (config.size as any).y / 2 : (config.size as any).height / 2, config.z);
+    mazeWalls.forEach(wall => {
+      const geometry = new THREE.BoxGeometry(wall.width, wall.height, wall.depth);
+      const mesh = new THREE.Mesh(geometry, woodMaterial);
+      
+      mesh.position.set(wall.x, wall.height / 2, wall.z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.scene.add(mesh);
 
-      // Create Cannon.js body
-      const body = new CANNON.Body({ mass: 0 }); // Static obstacles
+      // Physics
+      const shape = new CANNON.Box(new CANNON.Vec3(wall.width / 2, wall.height / 2, wall.depth / 6));
+      const body = new CANNON.Body({ mass: 0 });
       body.addShape(shape);
-      body.position.set(config.x, (config.size as any).y ? (config.size as any).y / 2 : (config.size as any).height / 2, config.z);
+      body.position.set(wall.x, wall.height / 2, wall.z);
       this.world.addBody(body);
+      
+      this.obstacles.push({ mesh, body });
+    });
 
+    // ==== RAMPAS NAS BORDAS ====
+    const ramps = [
+      // Rampa superior esquerda
+      { x: -110, z: 130, width: 40, height: 3, depth: 50, rotation: 0, angle: Math.PI / 8 },
+      
+      // Rampa superior direita
+      { x: 110, z: 130, width: 40, height: 3, depth: 50, rotation: 0, angle: Math.PI / 8 },
+      
+      // Rampa inferior esquerda
+      { x: -110, z: -130, width: 40, height: 3, depth: 50, rotation: 0, angle: Math.PI / 9 },
+      
+      // Rampa inferior direita
+      { x: 110, z: -130, width: 40, height: 3, depth: 50, rotation: 0, angle: Math.PI / 9 },
+    ];
+
+    ramps.forEach(ramp => {
+      const geometry = new THREE.BoxGeometry(ramp.width, ramp.height, ramp.depth);
+      const mesh = new THREE.Mesh(geometry, lightWoodMaterial);
+      
+      const yOffset = Math.sin(ramp.angle) * ramp.depth / 4;
+      mesh.position.set(ramp.x, ramp.height / 2 + yOffset, ramp.z);
+      mesh.rotation.y = ramp.rotation;
+      mesh.rotation.x = ramp.angle;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+
+      // Physics
+      const shape = new CANNON.Box(new CANNON.Vec3(ramp.width / 2, ramp.height / 2, ramp.depth / 2));
+      const body = new CANNON.Body({ mass: 0 });
+      body.addShape(shape);
+      body.position.set(ramp.x, ramp.height / 2 + yOffset, ramp.z);
+      body.quaternion.setFromEuler(ramp.angle, ramp.rotation, 0);
+      this.world.addBody(body);
+      
+      this.obstacles.push({ mesh, body });
+    });
+
+    // ==== ALGUNS CAIXOTES ====
+    const crates = [
+      { x: -130, z: 0, size: 15 },
+      { x: 130, z: 0, size: 15 },
+      { x: 0, z: 50, size: 12 },
+      { x: 0, z: -50, size: 12 },
+    ];
+
+    crates.forEach((crate, index) => {
+      const geometry = new THREE.BoxGeometry(crate.size, crate.size, crate.size);
+      const material = index % 2 === 0 ? darkWoodMaterial : woodMaterial;
+      const mesh = new THREE.Mesh(geometry, material);
+      
+      mesh.position.set(crate.x, crate.size / 2, crate.z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+
+      // Physics
+      const shape = new CANNON.Box(new CANNON.Vec3(crate.size / 2, crate.size / 2, crate.size / 2));
+      const body = new CANNON.Body({ mass: 0 });
+      body.addShape(shape);
+      body.position.set(crate.x, crate.size / 2, crate.z);
+      this.world.addBody(body);
+      
       this.obstacles.push({ mesh, body });
     });
     
-    // Debug: Log obstacle positions
-    console.log('Obstáculos criados:', this.obstacles.map(obs => ({
-      x: obs.body.position.x,
-      z: obs.body.position.z,
-      shape: obs.body.shapes[0].constructor.name
-    })));
+    console.log('🌲 Arena simplificada com', this.obstacles.length, 'obstáculos');
   }
 
   private setupLighting(): void {
@@ -369,49 +434,67 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private createArenaWalls(): void {
-    const concreteMaterial = new THREE.MeshStandardMaterial({ color: 0x606060, roughness: 0.9, metalness: 0.2 });
+    const woodMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0x8B4513, 
+      roughness: 0.85, 
+      metalness: 0.1 
+    });
     const wallHeight = 15;
-    const wallThickness = 5;
+    const wallThickness = 8;
     const arenaSize = 400;
 
+    // Create wooden plank texture for walls
+    const createWoodenWall = (width: number, height: number, depth: number, x: number, y: number, z: number, rotationY = 0) => {
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(width, height, depth),
+        woodMaterial
+      );
+      wall.position.set(x, y, z);
+      wall.rotation.y = rotationY;
+      wall.castShadow = true;
+      wall.receiveShadow = true;
+      
+      // Add planks detail
+      const plankCount = Math.floor(height / 3);
+      for (let i = 0; i < plankCount; i++) {
+        const plank = new THREE.Mesh(
+          new THREE.BoxGeometry(width * 0.98, 0.5, depth + 0.5),
+          new THREE.MeshStandardMaterial({ color: 0x654321, roughness: 0.9 })
+        );
+        plank.position.set(x, y - height/2 + i * 3 + 1.5, z);
+        plank.rotation.y = rotationY;
+        this.scene.add(plank);
+      }
+      
+      return wall;
+    };
+
     // North wall
-    const northWall = new THREE.Mesh(
-      new THREE.BoxGeometry(arenaSize + wallThickness, wallHeight, wallThickness),
-      concreteMaterial
+    const northWall = createWoodenWall(
+      arenaSize + wallThickness, wallHeight, wallThickness,
+      0, wallHeight/2, arenaSize/2 + wallThickness/2
     );
-    northWall.position.set(0, wallHeight/2, arenaSize/2 + wallThickness/2);
-    northWall.castShadow = true;
-    northWall.receiveShadow = true;
     this.scene.add(northWall);
 
     // South wall
-    const southWall = new THREE.Mesh(
-      new THREE.BoxGeometry(arenaSize + wallThickness, wallHeight, wallThickness),
-      concreteMaterial
+    const southWall = createWoodenWall(
+      arenaSize + wallThickness, wallHeight, wallThickness,
+      0, wallHeight/2, -arenaSize/2 - wallThickness/2
     );
-    southWall.position.set(0, wallHeight/2, -arenaSize/2 - wallThickness/2);
-    southWall.castShadow = true;
-    southWall.receiveShadow = true;
     this.scene.add(southWall);
 
     // East wall
-    const eastWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallThickness, wallHeight, arenaSize),
-      concreteMaterial
+    const eastWall = createWoodenWall(
+      wallThickness, wallHeight, arenaSize,
+      arenaSize/2 + wallThickness/2, wallHeight/2, 0
     );
-    eastWall.position.set(arenaSize/2 + wallThickness/2, wallHeight/2, 0);
-    eastWall.castShadow = true;
-    eastWall.receiveShadow = true;
     this.scene.add(eastWall);
 
     // West wall
-    const westWall = new THREE.Mesh(
-      new THREE.BoxGeometry(wallThickness, wallHeight, arenaSize),
-      concreteMaterial
+    const westWall = createWoodenWall(
+      wallThickness, wallHeight, arenaSize,
+      -arenaSize/2 - wallThickness/2, wallHeight/2, 0
     );
-    westWall.position.set(-arenaSize/2 - wallThickness/2, wallHeight/2, 0);
-    westWall.castShadow = true;
-    westWall.receiveShadow = true;
     this.scene.add(westWall);
   }
 
