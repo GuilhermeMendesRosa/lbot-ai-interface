@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit, Inject, PLATFORM_ID } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit, Inject, PLATFORM_ID, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { SimulatorBridgeService, SimulatorCommand } from '../../services/simulator-bridge.service';
 import { Subscription } from 'rxjs';
@@ -42,9 +42,14 @@ interface ParsedCommand {
           <span class="status-value" [textContent]="currentCommand"></span>
         </div>
       </div>
-      <button class="reset-button" (click)="resetRobot()" [disabled]="robotState.isAnimating">
-        🔄 Resetar Posição
-      </button>
+      <div class="buttons-container">
+        <button class="reset-button" (click)="resetRobot()" [disabled]="robotState.isAnimating">
+          🔄 Resetar Posição
+        </button>
+        <button class="camera-button" (click)="toggleCameraMode()" [disabled]="robotState.isAnimating">
+          📹 {{ isThirdPersonView ? 'Vista Normal' : '3ª Pessoa' }}
+        </button>
+      </div>
       <div class="indicator" [style.display]="robotState.isAnimating ? 'block' : 'none'">
         EXECUTANDO...
       </div>
@@ -86,6 +91,11 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   robotState: RobotState = { x: 0, z: 0, rotation: 0, isAnimating: false };
   currentCommand = '-';
   errorMessage = '';
+  isThirdPersonView = false;
+
+  // Throttle para atualizações do estado
+  private lastStateUpdate = 0;
+  private stateUpdateInterval = 100; // Atualizar a cada 100ms
 
   // Mouse interaction state
   private mouseX = 0;
@@ -94,7 +104,9 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
   constructor(
     private bridge: SimulatorBridgeService,
-    @Inject(PLATFORM_ID) private platformId: Object
+    @Inject(PLATFORM_ID) private platformId: Object,
+    private cdr: ChangeDetectorRef,
+    private ngZone: NgZone
   ) {}
 
   getRotationDisplay(): string {
@@ -658,65 +670,80 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   private startRenderLoop(): void {
-    const animate = () => {
-      this.animationId = requestAnimationFrame(animate);
+    this.ngZone.runOutsideAngular(() => {
+      const animate = () => {
+        this.animationId = requestAnimationFrame(animate);
 
-      // Step physics simulation
-      this.world.step(this.timeStep);
-      
-      // Estabilização e controle de física
-      if (!this.robotState.isAnimating) {
-        // Forçar orientação vertical
-        const upVector = new CANNON.Vec3(0, 1, 0);
-        const robotUp = new CANNON.Vec3(0, 1, 0);
-        this.robotBody.quaternion.vmult(robotUp, robotUp);
+        // Step physics simulation
+        this.world.step(this.timeStep);
         
-        const dot = upVector.dot(robotUp);
-        if (dot < 0.99) {
-          const correctionTorque = upVector.cross(robotUp);
-          correctionTorque.scale(200); // Força muito alta para correção instantânea
-          this.robotBody.applyTorque(correctionTorque);
+        // Estabilização e controle de física
+        if (!this.robotState.isAnimating) {
+          // Forçar orientação vertical
+          const upVector = new CANNON.Vec3(0, 1, 0);
+          const robotUp = new CANNON.Vec3(0, 1, 0);
+          this.robotBody.quaternion.vmult(robotUp, robotUp);
+          
+          const dot = upVector.dot(robotUp);
+          if (dot < 0.99) {
+            const correctionTorque = upVector.cross(robotUp);
+            correctionTorque.scale(200); // Força muito alta para correção instantânea
+            this.robotBody.applyTorque(correctionTorque);
+          }
+          
+          // Zerar rotações indesejadas completamente
+          this.robotBody.angularVelocity.x = 0;
+          this.robotBody.angularVelocity.z = 0;
+          
+          // Limitar velocidade vertical para cima (evitar saltos), mas permitir queda rápida
+          if (this.robotBody.velocity.y > 0.5) {
+            this.robotBody.velocity.y = 0.5;
+          }
+          
+          // Forçar robô para baixo rapidamente se estiver no ar
+          if (this.robotBody.position.y > 7) {
+            this.robotBody.velocity.y -= 2; // Acelerar queda
+          }
         }
-        
-        // Zerar rotações indesejadas completamente
-        this.robotBody.angularVelocity.x = 0;
-        this.robotBody.angularVelocity.z = 0;
-        
-        // Limitar velocidade vertical para cima (evitar saltos), mas permitir queda rápida
-        if (this.robotBody.velocity.y > 0.5) {
-          this.robotBody.velocity.y = 0.5;
+
+        // Sync robot visual with physics body
+        this.robotGroup.position.copy(this.robotBody.position as any);
+        this.robotGroup.quaternion.copy(this.robotBody.quaternion as any);
+
+        // Throttled state update para evitar ExpressionChangedAfterItHasBeenCheckedError
+        const now = Date.now();
+        if (now - this.lastStateUpdate > this.stateUpdateInterval) {
+          this.ngZone.run(() => {
+            // Update robot state from physics body
+            this.robotState.x = this.robotBody.position.x;
+            this.robotState.z = this.robotBody.position.z;
+            
+            // Calcular rotação Y a partir do quaternion
+            const euler = new CANNON.Vec3();
+            this.robotBody.quaternion.toEuler(euler);
+            this.robotState.rotation = euler.y * 180 / Math.PI;
+            
+            // Forçar detecção de mudanças
+            this.cdr.detectChanges();
+          });
+          this.lastStateUpdate = now;
         }
-        
-        // Forçar robô para baixo rapidamente se estiver no ar
-        if (this.robotBody.position.y > 7) {
-          this.robotBody.velocity.y -= 2; // Acelerar queda
+
+        // Camera controls
+        if (this.isThirdPersonView) {
+          // Atualizar câmera em terceira pessoa para seguir o robô
+          this.updateCameraToThirdPerson();
+        } else if (this.isMouseDown) {
+          this.camera.position.x = 160 * Math.cos(this.mouseX * Math.PI);
+          this.camera.position.z = 280 * Math.sin(this.mouseX * Math.PI);
+          this.camera.position.y = 160 + this.mouseY * 80;
+          this.camera.lookAt(this.robotGroup.position);
         }
-      }
 
-      // Sync robot visual with physics body
-      this.robotGroup.position.copy(this.robotBody.position as any);
-      this.robotGroup.quaternion.copy(this.robotBody.quaternion as any);
-
-      // Update robot state from physics body
-      this.robotState.x = this.robotBody.position.x;
-      this.robotState.z = this.robotBody.position.z;
-      
-      // Calcular rotação Y a partir do quaternion
-      const euler = new CANNON.Vec3();
-      this.robotBody.quaternion.toEuler(euler);
-      this.robotState.rotation = euler.y * 180 / Math.PI;
-
-      // Camera controls
-      if (this.isMouseDown) {
-        this.camera.position.x = 160 * Math.cos(this.mouseX * Math.PI);
-        this.camera.position.z = 280 * Math.sin(this.mouseX * Math.PI);
-        this.camera.position.y = 160 + this.mouseY * 80;
-        this.camera.lookAt(this.robotGroup.position);
-      }
-
-      this.renderer.render(this.scene, this.camera);
-    };
-    animate();
+        this.renderer.render(this.scene, this.camera);
+      };
+      animate();
+    });
   }
 
   private handleCommand(cmd: SimulatorCommand): void {
@@ -743,15 +770,21 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     if (parsedCommands.length === 0) return;
     if (this.robotState.isAnimating) return;
 
-    this.robotState.isAnimating = true;
+    this.ngZone.run(() => {
+      this.robotState.isAnimating = true;
+      this.cdr.detectChanges();
+    });
 
     for (const cmd of parsedCommands) {
       await this.executeCommand(cmd);
       await new Promise(r => setTimeout(r, 300));
     }
 
-    this.robotState.isAnimating = false;
-    this.currentCommand = '-';
+    this.ngZone.run(() => {
+      this.robotState.isAnimating = false;
+      this.currentCommand = '-';
+      this.cdr.detectChanges();
+    });
   }
 
   private parseLBMLCommand(command: string): ParsedCommand | null {
@@ -771,7 +804,10 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   private async executeCommand(cmd: ParsedCommand): Promise<void> {
     if (!cmd) return;
     
-    this.currentCommand = `${cmd.type}${cmd.value}${cmd.direction}`;
+    this.ngZone.run(() => {
+      this.currentCommand = `${cmd.type}${cmd.value}${cmd.direction}`;
+      this.cdr.detectChanges();
+    });
 
     if (cmd.type === 'D') {
       const distance = cmd.value;
@@ -975,24 +1011,103 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   resetRobot(): void {
-    this.robotState.x = 0;
-    this.robotState.z = 0;
-    this.robotState.rotation = 0;
-    
     // Reset physics body
     this.robotBody.position.set(0, 6, 0); // Posicionar no chão
     this.robotBody.velocity.set(0, 0, 0);
     this.robotBody.angularVelocity.set(0, 0, 0);
     this.robotBody.quaternion.set(0, 0, 0, 1);
     
-    this.currentCommand = '-';
+    // Atualizar estado de forma controlada
+    this.ngZone.run(() => {
+      this.robotState.x = 0;
+      this.robotState.z = 0;
+      this.robotState.rotation = 0;
+      this.currentCommand = '-';
+      this.cdr.detectChanges();
+    });
+  }
+
+  toggleCameraMode(): void {
+    this.isThirdPersonView = !this.isThirdPersonView;
+    
+    if (!this.isThirdPersonView) {
+      // Retornar para vista normal com transição suave
+      this.animateCameraToNormal();
+    }
+    // Para terceira pessoa, a animação acontece no render loop
+  }
+
+  private animateCameraToNormal(): void {
+    const targetPos = { x: 120, y: 160, z: 240 };
+    const startPos = { 
+      x: this.camera.position.x, 
+      y: this.camera.position.y, 
+      z: this.camera.position.z 
+    };
+    
+    const duration = 1000; // 1 segundo
+    const startTime = Date.now();
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Ease out animation
+      const easeProgress = 1 - Math.pow(1 - progress, 3);
+      
+      this.camera.position.x = startPos.x + (targetPos.x - startPos.x) * easeProgress;
+      this.camera.position.y = startPos.y + (targetPos.y - startPos.y) * easeProgress;
+      this.camera.position.z = startPos.z + (targetPos.z - startPos.z) * easeProgress;
+      
+      this.camera.lookAt(0, 0, 0);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    
+    animate();
+  }
+
+  private updateCameraToThirdPerson(): void {
+    // Usar posição direta do corpo físico para evitar inconsistências
+    const robotX = this.robotBody.position.x;
+    const robotZ = this.robotBody.position.z;
+    
+    // Calcular rotação Y a partir do quaternion
+    const euler = new CANNON.Vec3();
+    this.robotBody.quaternion.toEuler(euler);
+    const robotRotation = euler.y;
+    
+    const distance = 60; // Distância atrás do robô
+    const height = 30; // Altura da câmera
+    
+    // Calcular posição atrás do robô
+    const targetX = robotX - Math.sin(robotRotation) * distance;
+    const targetZ = robotZ - Math.cos(robotRotation) * distance;
+    const targetY = height;
+    
+    // Interpolar suavemente para a nova posição (para movimento mais fluido)
+    const lerpFactor = 0.1;
+    this.camera.position.x += (targetX - this.camera.position.x) * lerpFactor;
+    this.camera.position.y += (targetY - this.camera.position.y) * lerpFactor;
+    this.camera.position.z += (targetZ - this.camera.position.z) * lerpFactor;
+    
+    // Sempre olhar para o robô
+    this.camera.lookAt(this.robotGroup.position);
   }
 
   private showError(message = 'Comando inválido!'): void {
-    this.errorMessage = message;
+    this.ngZone.run(() => {
+      this.errorMessage = message;
+      this.cdr.detectChanges();
+    });
     console.log('Erro no simulador:', message);
     setTimeout(() => {
-      this.errorMessage = '';
+      this.ngZone.run(() => {
+        this.errorMessage = '';
+        this.cdr.detectChanges();
+      });
     }, 2000);
   }
 }
