@@ -1,644 +1,461 @@
-import random
-import re
-from datetime import datetime
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+🤖 Gerador de Dataset LBML V4
+Gera 700+ exemplos de comandos em português → LBML (com deslocamento e rotação)
 
-def gerar_dataset_lbml_massivo():
-    """
-    Gera um dataset massivo de 150.000 exemplos de conversão de linguagem natural para LBML
-    com frases mais naturais em português
-    """
-    dataset = []
+Formato LBML:
+- Deslocamento: D<valor><direção>;  (F/B/L/R)
+- Rotação: R<valor><direção>;  (L/R)
+- Exemplo: D40F;R90R;D20L;
+"""
+
+import random
+import os
+
+# ============================================================================
+# CONFIGURAÇÃO DE VARIAÇÕES LINGUÍSTICAS
+# ============================================================================
+
+# Verbos de deslocamento
+VERBOS_DESLOCAMENTO = [
+    "vá", "vou", "ande", "andar", "caminhe", "caminar",
+    "mova-se", "mover", "desloque-se", "deslocar",
+    "prossiga", "prosseguir", "siga", "seguir", "avance", "avançar"
+]
+
+# Verbos de rotação
+VERBOS_ROTACAO = [
+    "gire", "girar", "vire", "virar", "rotacione", "rotacionar",
+    "dê meia-volta", "faça meia-volta", "dê um giro", "rotação"
+]
+
+# Indicadores de direção para deslocamento
+DIR_FRENTE = ["frente", "à frente", "pra frente", "para frente", "adiante"]
+DIR_TRAS = ["trás", "atrás", "para trás", "pra trás", "ré", "retrocesso"]
+DIR_ESQUERDA = ["esquerda", "à esquerda", "para esquerda", "pra esquerda"]
+DIR_DIREITA = ["direita", "à direita", "para direita", "pra direita"]
+
+# Indicadores de direção para rotação
+ROT_ESQUERDA = ["esquerda", "à esquerda", "anti-horário", "contra-horário"]
+ROT_DIREITA = ["direita", "à direita", "horário", "sentido horário"]
+
+# Unidades de medida
+UNIDADES_DISTANCIA = [
+    ("metro", 100),
+    ("metros", 100),
+    ("m ", 100),
+    ("centímetro", 1),
+    ("centímetros", 1),
+    ("cm", 1),
+    ("milímetro", 0.1),
+    ("milímetros", 0.1),
+    ("mm", 0.1),
+]
+
+# Multiplicadores especiais
+MULTIPLICADORES = {
+    "meia": 0.5,
+    "quarto": 0.25,
+    "três quartos": 0.75,
+    "dez": 10,
+    "vinte": 20,
+    "trinta": 30,
+    "quarenta": 40,
+    "cinquenta": 50,
+}
+
+# Conectores para múltiplos comandos
+CONECTORES = [
+    ", depois", ", em seguida", ", logo após", ", então",
+    "e depois", "e em seguida", "e logo após", "e então",
+    ",", "; depois", "; em seguida", "; então"
+]
+
+# ============================================================================
+# FUNÇÕES AUXILIARES
+# ============================================================================
+
+def converter_unidade(valor, unidade):
+    """Converte valor com unidade para centímetros"""
+    for unit, factor in UNIDADES_DISTANCIA:
+        if unidade.strip().lower() in unit:
+            resultado = int(valor * factor)
+            return max(1, resultado)  # Mínimo 1cm
+    return None
+
+def processar_distancia(texto):
+    """Extrai valor numérico e unidade de texto como '40 centímetros'"""
+    palavras = texto.lower().split()
+    for i, palavra in enumerate(palavras):
+        try:
+            valor = float(palavra.replace(",", "."))
+            # Procura unidade nos próximos palavras
+            if i + 1 < len(palavras):
+                unidade_parte = " ".join(palavras[i+1:])
+                resultado = converter_unidade(valor, unidade_parte)
+                if resultado:
+                    return resultado
+        except ValueError:
+            continue
+    return None
+
+# ============================================================================
+# GERADORES DE EXEMPLOS
+# ============================================================================
+
+def gerar_deslocamento_simples(num_exemplos_por_direcao=10000):
+    """Gera exemplos simples de deslocamento: D[n]F; etc"""
+    exemplos = []
     
-    # Formas naturais de pedir movimento
-    formas_movimento_frente = [
-        "anda {} pra frente",
-        "vai {} pra frente", 
-        "segue {} em frente",
-        "avança {}",
-        "anda {} adiante",
-        "caminha {} pra frente",
-        "vai {} reto",
-        "continua {} pra frente",
-        "segue {} adiante",
-        "prossegue {} pra frente",
-        "dá {} pra frente",
-        "faz {} pra frente",
-        "anda {} para a frente",
-        "vai {} para frente",
-        "move {} pra frente",
-        "desloca {} pra frente",
-        "percorre {} pra frente",
-        "caminha {} adiante",
-        "marcha {} pra frente",
-        "avança {} adiante"
-    ]
-    
-    formas_movimento_tras = [
-        "volta {} pra trás",
-        "recua {}",
-        "anda {} pra trás",
-        "vai {} pra trás",
-        "retrocede {}",
-        "volta {}",
-        "anda {} de ré",
-        "vai {} de costas",
-        "dá {} pra trás",
-        "faz {} pra trás",
-        "move {} pra trás",
-        "desloca {} pra trás",
-        "caminha {} pra trás",
-        "anda {} para trás",
-        "vai {} para trás",
-        "recua {} para trás",
-        "retorna {}",
-        "regride {}"
-    ]
-    
-    formas_movimento_lateral = [
-        "vai {} pra esquerda",
-        "vai {} pra direita",
-        "anda {} pro lado esquerdo",
-        "anda {} pro lado direito",
-        "move {} pra esquerda",
-        "move {} pra direita",
-        "desloca {} pra esquerda",
-        "desloca {} pra direita",
-        "vai {} pro lado",
-        "anda {} de lado",
-        "segue {} pela esquerda",
-        "segue {} pela direita",
-        "caminha {} pra esquerda",
-        "caminha {} pra direita",
-        "dá {} pro lado",
-        "faz {} pro lado esquerdo",
-        "faz {} pro lado direito"
-    ]
-    
-    formas_rotacao = [
-        "vira {} pra direita",
-        "vira {} pra esquerda",
-        "gira {} pra direita",
-        "gira {} pra esquerda",
-        "rotaciona {} pra direita",
-        "rotaciona {} pra esquerda",
-        "faz uma curva de {} pra direita",
-        "faz uma curva de {} pra esquerda",
-        "vira {} à direita",
-        "vira {} à esquerda",
-        "gira {} no sentido horário",
-        "gira {} no sentido anti-horário",
-        "dá um giro de {} pra direita",
-        "dá um giro de {} pra esquerda",
-        "faz um giro de {}",
-        "vira o corpo {} pra direita",
-        "vira o corpo {} pra esquerda"
-    ]
-    
-    # Formas de expressar quantidades de distância (sempre em cm)
-    def gerar_expressao_distancia(valor):
-        opcoes = [
-            f"{valor} centímetros",
-            f"{valor}cm",
-            f"{valor} cm"
-        ]
+    # Deslocamento frente
+    for _ in range(num_exemplos_por_direcao):
+        valor = random.choice([1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 75, 80, 90, 100, 120, 150, 200])
+        verbo = random.choice(VERBOS_DESLOCAMENTO)
+        direcao = random.choice(DIR_FRENTE)
+        unidade = random.choice(["centímetros", "cm", "metros", "m", "", " ", "  "])
         
-        # Adicionar variações ocasionais
-        if random.random() < 0.3:
-            opcoes.extend([
-                f"uns {valor}cm",
-                f"mais ou menos {valor}cm",
-                f"cerca de {valor}cm"
-            ])
-        
-        return random.choice(opcoes)
-    
-    # Formas de expressar ângulos
-    def gerar_expressao_angulo(valor):
-        if valor == 90:
-            opcoes = [
-                "90 graus",
-                "noventa graus",
-                "um ângulo reto"
-            ]
-        elif valor == 180:
-            opcoes = [
-                "180 graus",
-                "meia volta",
-                "cento e oitenta graus"
-            ]
-        elif valor == 360:
-            opcoes = [
-                "360 graus",
-                "uma volta completa",
-                "uma volta inteira",
-                "trezentos e sessenta graus"
-            ]
-        elif valor == 45:
-            opcoes = [
-                "45 graus",
-                "quarenta e cinco graus"
-            ]
-        elif valor == 30:
-            opcoes = [
-                "30 graus",
-                "trinta graus"
-            ]
-        elif valor == 60:
-            opcoes = [
-                "60 graus",
-                "sessenta graus"
-            ]
-        elif valor == 270:
-            opcoes = [
-                "270 graus",
-                "duzentos e setenta graus",
-                "três quartos de volta"
-            ]
+        if random.random() > 0.3:
+            comando_pt = f"{verbo} {valor} {unidade} {direcao}".replace("  ", " ").strip()
         else:
-            opcoes = [
-                f"{valor} graus"
-            ]
+            comando_pt = f"{verbo} {direcao} {valor} {unidade}".replace("  ", " ").strip()
         
-        return random.choice(opcoes)
+        lbml = f"D{valor}F;"
+        exemplos.append((comando_pt, lbml))
     
-    # Adicionar prefixos e sufixos ocasionais para naturalidade
-    prefixos_opcionais = [
-        "", "", "", "",  # Mais chances de não ter prefixo
-        "agora ",
-        "por favor, ",
-        "pode ",
-        "preciso que você ",
-        "quero que você ",
-        "tenta ",
-        "vai lá e "
-    ]
+    # Deslocamento trás
+    for _ in range(num_exemplos_por_direcao):
+        valor = random.choice([1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 75, 80, 90, 100])
+        verbo = random.choice(VERBOS_DESLOCAMENTO)
+        direcao = random.choice(DIR_TRAS)
+        unidade = random.choice(["centímetros", "cm", "metros", "m", "", " "])
+        
+        comando_pt = f"{verbo} {valor} {unidade} {direcao}".replace("  ", " ").strip()
+        lbml = f"D{valor}B;"
+        exemplos.append((comando_pt, lbml))
     
-    sufixos_opcionais = [
-        "", "", "", "",  # Mais chances de não ter sufixo
-        " por favor",
-        " agora",
-        " pra mim",
-        " ok?",
-        " tá?",
-        " beleza?"
-    ]
+    # Deslocamento esquerda
+    for _ in range(num_exemplos_por_direcao):
+        valor = random.choice([1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 75, 80])
+        verbo = random.choice(VERBOS_DESLOCAMENTO)
+        direcao = random.choice(DIR_ESQUERDA)
+        unidade = random.choice(["centímetros", "cm", "", " "])
+        
+        comando_pt = f"{verbo} {valor} {unidade} {direcao}".replace("  ", " ").strip()
+        lbml = f"D{valor}L;"
+        exemplos.append((comando_pt, lbml))
     
-    print("Gerando dataset de 150.000 exemplos...")
-    print("Isso pode levar alguns minutos...")
+    # Deslocamento direita
+    for _ in range(num_exemplos_por_direcao):
+        valor = random.choice([1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 60, 70, 75, 80])
+        verbo = random.choice(VERBOS_DESLOCAMENTO)
+        direcao = random.choice(DIR_DIREITA)
+        unidade = random.choice(["centímetros", "cm", "", " "])
+        
+        comando_pt = f"{verbo} {valor} {unidade} {direcao}".replace("  ", " ").strip()
+        lbml = f"D{valor}R;"
+        exemplos.append((comando_pt, lbml))
     
-    # 1. Comandos simples de movimento para frente (15.000)
-    print("Gerando comandos de movimento para frente...")
-    for i in range(15000):
-        if i % 3000 == 0:
-            print(f"  {i}/15000...")
-        
-        valor = random.choice([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200, 250, 300, 
-                              15, 25, 35, 45, 55, 65, 75, 85, 95, 110, 130, 140, 160, 180, 220])
-        distancia = gerar_expressao_distancia(valor)
-        template = random.choice(formas_movimento_frente)
-        
-        entrada = template.format(distancia)
-        
-        # Adicionar prefixo/sufixo ocasionalmente
-        if random.random() < 0.3:
-            entrada = random.choice(prefixos_opcionais) + entrada
-        if random.random() < 0.2:
-            entrada = entrada + random.choice(sufixos_opcionais)
-        
-        saida = f"D{valor}F;"
-        dataset.append((entrada.strip(), saida))
+    return exemplos
+
+def gerar_rotacao_simples(num_exemplos_por_direcao=15000):
+    """Gera exemplos simples de rotação: R[n]L; etc"""
+    exemplos = []
     
-    # 2. Comandos simples de movimento para trás (10.000)
-    print("Gerando comandos de movimento para trás...")
-    for i in range(10000):
-        if i % 2000 == 0:
-            print(f"  {i}/10000...")
+    # Rotação esquerda
+    for _ in range(num_exemplos_por_direcao):
+        valor = random.choice([30, 45, 60, 90, 120, 135, 150, 180, 210, 270, 315, 360])
+        verbo = random.choice(VERBOS_ROTACAO)
+        direcao = random.choice(ROT_ESQUERDA)
         
-        valor = random.choice([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150, 200])
-        distancia = gerar_expressao_distancia(valor)
-        template = random.choice(formas_movimento_tras)
-        
-        entrada = template.format(distancia)
-        
-        if random.random() < 0.3:
-            entrada = random.choice(prefixos_opcionais) + entrada
-        if random.random() < 0.2:
-            entrada = entrada + random.choice(sufixos_opcionais)
-        
-        saida = f"D{valor}B;"
-        dataset.append((entrada.strip(), saida))
-    
-    # 3. Comandos simples de movimento lateral (15.000)
-    print("Gerando comandos de movimento lateral...")
-    for i in range(15000):
-        if i % 3000 == 0:
-            print(f"  {i}/15000...")
-        
-        valor = random.choice([10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 120, 150])
-        distancia = gerar_expressao_distancia(valor)
-        
-        # Escolher template e direção
-        template = random.choice(formas_movimento_lateral)
-        if "esquerda" in template or "esquerdo" in template:
-            dir_code = "L"
-        elif "direita" in template or "direito" in template:
-            dir_code = "R"
+        # Variações: com/sem "graus"
+        if random.random() > 0.3:
+            comando_pt = f"{verbo} {valor} graus {direcao}".strip()
         else:
-            dir_code = random.choice(["L", "R"])
-            if dir_code == "L":
-                template = template.replace("pro lado", "pro lado esquerdo")
-                template = template.replace("de lado", "de lado para a esquerda")
+            comando_pt = f"{verbo} {valor}° {direcao}".strip()
+        
+        lbml = f"R{valor}L;"
+        exemplos.append((comando_pt, lbml))
+    
+    # Rotação direita
+    for _ in range(num_exemplos_por_direcao):
+        valor = random.choice([30, 45, 60, 90, 120, 135, 150, 180, 210, 270, 315, 360])
+        verbo = random.choice(VERBOS_ROTACAO)
+        direcao = random.choice(ROT_DIREITA)
+        
+        if random.random() > 0.3:
+            comando_pt = f"{verbo} {valor} graus {direcao}".strip()
+        else:
+            comando_pt = f"{verbo} {valor}° {direcao}".strip()
+        
+        lbml = f"R{valor}R;"
+        exemplos.append((comando_pt, lbml))
+    
+    return exemplos
+
+def gerar_comandos_compostos(num_2_acoes=40000, num_3_acoes=25000, num_4plus_acoes=15000):
+    """Gera exemplos com múltiplas ações: D40F;R90R;D20L;"""
+    exemplos = []
+    
+    # 2 ações
+    for _ in range(num_2_acoes):
+        tipo1 = random.choice(["D", "R"])
+        tipo2 = random.choice(["D", "R"])
+        
+        if tipo1 == "D":
+            dir1 = random.choice(["F", "B", "L", "R"])
+            val1 = random.choice([10, 20, 30, 40, 50])
+            cmd1_pt = f"{'ande' if random.random() > 0.5 else 'vá'} {val1} para {'frente' if dir1=='F' else 'trás' if dir1=='B' else 'esquerda' if dir1=='L' else 'direita'}"
+            cmd1_lbml = f"D{val1}{dir1};"
+        else:
+            dir1 = random.choice(["L", "R"])
+            val1 = random.choice([45, 90, 180])
+            cmd1_pt = f"gire {val1} graus para {'esquerda' if dir1=='L' else 'direita'}"
+            cmd1_lbml = f"R{val1}{dir1};"
+        
+        if tipo2 == "D":
+            dir2 = random.choice(["F", "B", "L", "R"])
+            val2 = random.choice([10, 20, 30, 40, 50])
+            cmd2_pt = f"{'ande' if random.random() > 0.5 else 'vá'} {val2} para {'frente' if dir2=='F' else 'trás' if dir2=='B' else 'esquerda' if dir2=='L' else 'direita'}"
+            cmd2_lbml = f"D{val2}{dir2};"
+        else:
+            dir2 = random.choice(["L", "R"])
+            val2 = random.choice([45, 90, 180])
+            cmd2_pt = f"gire {val2} graus para {'esquerda' if dir2=='L' else 'direita'}"
+            cmd2_lbml = f"R{val2}{dir2};"
+        
+        conector = random.choice(CONECTORES)
+        comando_pt = f"{cmd1_pt}{conector} {cmd2_pt}"
+        lbml = f"{cmd1_lbml}{cmd2_lbml}"
+        exemplos.append((comando_pt, lbml))
+    
+    # 3 ações
+    for _ in range(num_3_acoes):
+        lbml = ""
+        comando_pt = ""
+        
+        for i in range(3):
+            if random.random() > 0.4:  # 60% deslocamento, 40% rotação
+                dir_move = random.choice(["F", "B", "L", "R"])
+                val = random.choice([10, 20, 30, 40])
+                if i > 0:
+                    comando_pt += random.choice(CONECTORES) + " "
+                comando_pt += f"{'ande' if random.random() > 0.5 else 'vá'} {val} para {'frente' if dir_move=='F' else 'trás' if dir_move=='B' else 'esquerda' if dir_move=='L' else 'direita'}"
+                lbml += f"D{val}{dir_move};"
             else:
-                template = template.replace("pro lado", "pro lado direito")
-                template = template.replace("de lado", "de lado para a direita")
+                dir_rot = random.choice(["L", "R"])
+                val = random.choice([45, 90, 180])
+                if i > 0:
+                    comando_pt += random.choice(CONECTORES) + " "
+                comando_pt += f"gire {val} graus para {'esquerda' if dir_rot=='L' else 'direita'}"
+                lbml += f"R{val}{dir_rot};"
         
-        entrada = template.format(distancia)
-        
-        if random.random() < 0.3:
-            entrada = random.choice(prefixos_opcionais) + entrada
-        if random.random() < 0.2:
-            entrada = entrada + random.choice(sufixos_opcionais)
-        
-        saida = f"D{valor}{dir_code};"
-        dataset.append((entrada.strip(), saida))
+        exemplos.append((comando_pt, lbml))
     
-    # 4. Comandos simples de rotação (20.000)
-    print("Gerando comandos de rotação...")
-    for i in range(20000):
-        if i % 4000 == 0:
-            print(f"  {i}/20000...")
+    # 4+ ações
+    for _ in range(num_4plus_acoes):
+        lbml = ""
+        comando_pt = ""
         
-        valor = random.choice([15, 30, 45, 60, 90, 120, 135, 150, 180, 270, 360])
-        angulo = gerar_expressao_angulo(valor)
-        template = random.choice(formas_rotacao)
+        for i in range(random.randint(4, 5)):
+            if random.random() > 0.5:
+                dir_move = random.choice(["F", "B", "L", "R"])
+                val = random.choice([10, 15, 20, 30])
+                if i > 0:
+                    comando_pt += random.choice(CONECTORES) + " "
+                comando_pt += f"{'ande' if random.random() > 0.5 else 'vá'} {val} para {'frente' if dir_move=='F' else 'trás' if dir_move=='B' else 'esquerda' if dir_move=='L' else 'direita'}"
+                lbml += f"D{val}{dir_move};"
+            else:
+                dir_rot = random.choice(["L", "R"])
+                val = random.choice([45, 90])
+                if i > 0:
+                    comando_pt += random.choice(CONECTORES) + " "
+                comando_pt += f"gire {val} graus para {'esquerda' if dir_rot=='L' else 'direita'}"
+                lbml += f"R{val}{dir_rot};"
         
-        # Determinar direção baseado no template
-        if "direita" in template or "horário" in template and "anti" not in template:
-            dir_code = "R"
-        elif "esquerda" in template or "anti-horário" in template:
-            dir_code = "L"
-        else:
-            dir_code = random.choice(["L", "R"])
-        
-        entrada = template.format(angulo)
-        
-        if random.random() < 0.3:
-            entrada = random.choice(prefixos_opcionais) + entrada
-        if random.random() < 0.2:
-            entrada = entrada + random.choice(sufixos_opcionais)
-        
-        saida = f"R{valor}{dir_code};"
-        dataset.append((entrada.strip(), saida))
+        exemplos.append((comando_pt, lbml))
     
-    # 5. Comandos compostos de 2 ações (25.000)
-    print("Gerando comandos compostos de 2 ações...")
-    conectores = [
-        " e depois ",
-        " e ",
-        ", depois ",
-        " e então ",
-        ", aí ",
-        " e em seguida ",
-        ", em seguida ",
-        ". Depois ",
-        " para então ",
-        ", logo após "
+    return exemplos
+
+def gerar_conversao_unidades(num_metros=5000, num_mm=3000, num_especiais=2000):
+    """Gera exemplos com conversão de unidades"""
+    exemplos = []
+    
+    # Metros para cm
+    for _ in range(num_metros):
+        metros = random.choice([1, 2, 3, 0.5, 1.5])
+        cm = int(metros * 100)
+        direcao = random.choice(["F", "B", "L", "R"])
+        dir_nome = {"F": "frente", "B": "trás", "L": "esquerda", "R": "direita"}[direcao]
+        
+        unidade = "metro" if metros == 1 else "metros"
+        comando_pt = f"ande {metros} {unidade} para {dir_nome}"
+        lbml = f"D{cm}{direcao};"
+        exemplos.append((comando_pt, lbml))
+    
+    # Milímetros para cm
+    for _ in range(num_mm):
+        mm = random.choice([50, 100, 150, 200, 300, 500])
+        cm = int(mm / 10)
+        direcao = random.choice(["F", "B", "L", "R"])
+        dir_nome = {"F": "frente", "B": "trás", "L": "esquerda", "R": "direita"}[direcao]
+        
+        comando_pt = f"vá {mm}mm para {dir_nome}"
+        lbml = f"D{cm}{direcao};"
+        exemplos.append((comando_pt, lbml))
+    
+    # Meia-volta, quarto de volta
+    for _ in range(num_especiais // 2):
+        variacao = random.choice(["dê meia-volta", "faça meia-volta", "meia-volta", "dê meia volta"])
+        comando_pt = variacao
+        lbml = "R180L;" if random.random() > 0.5 else "R180R;"
+        exemplos.append((comando_pt, lbml))
+    
+    for _ in range(num_especiais // 2):
+        direcao = random.choice(["esquerda", "direita"])
+        dir_code = "L" if direcao == "esquerda" else "R"
+        comando_pt = f"gire um quarto de volta para {direcao}"
+        lbml = f"R90{dir_code};"
+        exemplos.append((comando_pt, lbml))
+    
+    return exemplos
+
+def gerar_variacoes_linguisticas(num_variacoes=5000):
+    """Gera variações das mesmas instruções com linguagem diferente"""
+    exemplos = []
+    
+    pares = [
+        ("vá 30 para frente", "D30F;"),
+        ("caminhe 40 centímetros à esquerda", "D40L;"),
+        ("mova-se 25 para trás", "D25B;"),
+        ("desloque-se 50 para direita", "D50R;"),
+        ("gire 90 graus à esquerda", "R90L;"),
+        ("vire 180 graus à direita", "R180R;"),
+        ("rotacione 45 graus para esquerda", "R45L;"),
+        ("ande 20 para frente e gire 90 graus", "D20F;R90L;"),
+        ("prossiga 35 centímetros adiante", "D35F;"),
+        ("siga 45 metros para trás", "D4500B;"),
     ]
     
-    for i in range(25000):
-        if i % 5000 == 0:
-            print(f"  {i}/25000...")
-        
-        comandos = []
-        saidas = []
-        
-        for _ in range(2):
-            tipo = random.choice(["mov_frente", "mov_tras", "mov_lateral", "rotacao"])
-            
-            if tipo == "mov_frente":
-                valor = random.choice([20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200])
-                distancia = gerar_expressao_distancia(valor)
-                template = random.choice(formas_movimento_frente)
-                comandos.append(template.format(distancia))
-                saidas.append(f"D{valor}F;")
-            
-            elif tipo == "mov_tras":
-                valor = random.choice([20, 30, 40, 50, 60, 70, 80, 90, 100])
-                distancia = gerar_expressao_distancia(valor)
-                template = random.choice(formas_movimento_tras)
-                comandos.append(template.format(distancia))
-                saidas.append(f"D{valor}B;")
-            
-            elif tipo == "mov_lateral":
-                valor = random.choice([20, 30, 40, 50, 60, 70, 80, 90, 100])
-                distancia = gerar_expressao_distancia(valor)
-                dir_code = random.choice(["L", "R"])
-                if dir_code == "L":
-                    comandos.append(f"vai {distancia} pra esquerda")
-                else:
-                    comandos.append(f"vai {distancia} pra direita")
-                saidas.append(f"D{valor}{dir_code};")
-            
-            else:  # rotacao
-                valor = random.choice([30, 45, 60, 90, 180, 360])
-                angulo = gerar_expressao_angulo(valor)
-                dir_code = random.choice(["L", "R"])
-                if dir_code == "L":
-                    comandos.append(f"vira {angulo} pra esquerda")
-                else:
-                    comandos.append(f"vira {angulo} pra direita")
-                saidas.append(f"R{valor}{dir_code};")
-        
-        entrada = comandos[0] + random.choice(conectores) + comandos[1]
-        
-        if random.random() < 0.2:
-            entrada = random.choice(prefixos_opcionais) + entrada
-        if random.random() < 0.15:
-            entrada = entrada + random.choice(sufixos_opcionais)
-        
-        saida = "".join(saidas)
-        dataset.append((entrada.strip(), saida))
-    
-    # 6. Comandos compostos de 3 ações (20.000)
-    print("Gerando comandos compostos de 3 ações...")
-    for i in range(20000):
-        if i % 4000 == 0:
-            print(f"  {i}/20000...")
-        
-        comandos = []
-        saidas = []
-        
-        for _ in range(3):
-            tipo = random.choice(["mov_frente", "mov_tras", "mov_lateral", "rotacao"])
-            
-            if tipo == "mov_frente":
-                valor = random.choice([20, 30, 40, 50, 60, 70, 80, 90, 100])
-                distancia = gerar_expressao_distancia(valor)
-                comandos.append(f"anda {distancia} pra frente")
-                saidas.append(f"D{valor}F;")
-            
-            elif tipo == "mov_tras":
-                valor = random.choice([20, 30, 40, 50, 60])
-                distancia = gerar_expressao_distancia(valor)
-                comandos.append(f"recua {distancia}")
-                saidas.append(f"D{valor}B;")
-            
-            elif tipo == "mov_lateral":
-                valor = random.choice([20, 30, 40, 50])
-                distancia = gerar_expressao_distancia(valor)
-                dir_code = random.choice(["L", "R"])
-                if dir_code == "L":
-                    comandos.append(f"vai {distancia} pra esquerda")
-                else:
-                    comandos.append(f"vai {distancia} pra direita")
-                saidas.append(f"D{valor}{dir_code};")
-            
-            else:  # rotacao
-                valor = random.choice([45, 90, 180])
-                angulo = gerar_expressao_angulo(valor)
-                dir_code = random.choice(["L", "R"])
-                if dir_code == "L":
-                    comandos.append(f"gira {angulo} pra esquerda")
-                else:
-                    comandos.append(f"gira {angulo} pra direita")
-                saidas.append(f"R{valor}{dir_code};")
-        
-        # Construir entrada com conectores variados
-        entrada = comandos[0] + random.choice(conectores) + comandos[1] + random.choice(conectores) + comandos[2]
-        
-        saida = "".join(saidas)
-        dataset.append((entrada.strip(), saida))
-    
-    # 7. Comandos coloquiais e naturais (15.000)
-    print("Gerando comandos coloquiais...")
-    comandos_coloquiais = [
-        # Frente
-        ("vai reto", "D50F;"),
-        ("segue em frente", "D100F;"),
-        ("continua andando", "D80F;"),
-        ("vai adiante", "D60F;"),
-        ("anda mais um pouco", "D40F;"),
-        ("avança mais", "D70F;"),
-        ("prossegue", "D50F;"),
-        ("vai em frente mais um pouco", "D60F;"),
-        ("continua reto", "D80F;"),
-        ("segue adiante", "D70F;"),
-        ("anda pra frente", "D50F;"),
-        ("vai pra frente", "D60F;"),
-        ("dá uns passos pra frente", "D90F;"),
-        ("caminha pra frente", "D70F;"),
-        ("marcha em frente", "D100F;"),
-        
-        # Trás
-        ("volta um pouco", "D30B;"),
-        ("recua", "D40B;"),
-        ("dá ré", "D50B;"),
-        ("volta pra trás", "D60B;"),
-        ("anda de costas", "D40B;"),
-        ("retrocede", "D50B;"),
-        ("vai pra trás", "D40B;"),
-        ("recua um pouco", "D30B;"),
-        ("volta", "D40B;"),
-        ("dá uns passos pra trás", "D60B;"),
-        
-        # Lateral
-        ("vai pro lado", "D40R;"),
-        ("anda de lado", "D50L;"),
-        ("move pro lado direito", "D40R;"),
-        ("move pro lado esquerdo", "D40L;"),
-        ("desloca pra direita", "D50R;"),
-        ("desloca pra esquerda", "D50L;"),
-        
-        # Rotação
-        ("vira pra direita", "R90R;"),
-        ("vira pra esquerda", "R90L;"),
-        ("gira", "R180R;"),
-        ("dá meia volta", "R180L;"),
-        ("faz uma curva", "R90R;"),
-        ("vira o corpo", "R90L;"),
-        ("rotaciona", "R180R;"),
-        ("dá uma volta", "R360R;"),
-        ("gira completamente", "R360L;"),
-        ("vira totalmente", "R180R;"),
-        
-        # Expressões com quantidades implícitas
-        ("anda um pouquinho", "D20F;"),
-        ("anda bastante", "D200F;"),
-        ("anda muito", "D300F;"),
-        ("anda pouco", "D30F;"),
-        ("vai longe", "D250F;"),
-        ("vai pertinho", "D15F;"),
-        ("dá um passinho", "D25F;"),
-        ("dá um passo grande", "D80F;"),
-        ("dá um passo pequeno", "D20F;"),
-        ("avança bastante", "D150F;"),
-        ("avança pouco", "D30F;"),
-        ("recua bastante", "D100B;"),
-        ("recua pouco", "D20B;"),
-        ("vira um pouquinho", "R30R;"),
-        ("vira bastante", "R120L;"),
-        ("gira um pouco", "R45R;"),
-        ("gira muito", "R270L;")
+    variadores = [
+        lambda x: x,  # Original
+        lambda x: x.replace("vá", "ande"),
+        lambda x: x.replace("vá", "caminhe"),
+        lambda x: x.replace("para", "à"),
+        lambda x: x.replace("para frente", "à frente"),
+        lambda x: x.replace("centímetros", "cm"),
+        lambda x: x.replace("metros", "m"),
+        lambda x: x.replace("gire", "vire"),
+        lambda x: x.replace("gire", "rotacione"),
     ]
     
-    for i in range(15000):
-        if i % 3000 == 0:
-            print(f"  {i}/15000...")
-        
-        cmd, saida = random.choice(comandos_coloquiais)
-        
-        # Adicionar variações
-        if random.random() < 0.3:
-            cmd = random.choice(prefixos_opcionais) + cmd
-        if random.random() < 0.2:
-            cmd = cmd + random.choice(sufixos_opcionais)
-        
-        dataset.append((cmd.strip(), saida))
+    for _ in range(num_variacoes):
+        comando_base, lbml_base = random.choice(pares)
+        variador = random.choice(variadores)
+        comando_var = variador(comando_base)
+        exemplos.append((comando_var, lbml_base))
     
-    # 8. Formas geométricas (10.000)
-    print("Gerando comandos de formas geométricas...")
-    for i in range(10000):
-        if i % 2000 == 0:
-            print(f"  {i}/10000...")
-        
-        tamanho = random.choice([30, 40, 50, 60, 70, 80, 90, 100, 120, 150])
-        
-        formas = [
-            (f"faz um quadrado de {tamanho} centímetros",
-             f"D{tamanho}F;R90R;D{tamanho}F;R90R;D{tamanho}F;R90R;D{tamanho}F;R90R;"),
-            (f"desenha um quadrado de {tamanho}cm",
-             f"D{tamanho}F;R90R;D{tamanho}F;R90R;D{tamanho}F;R90R;D{tamanho}F;R90R;"),
-            (f"faz um triângulo de {tamanho}cm",
-             f"D{tamanho}F;R120R;D{tamanho}F;R120R;D{tamanho}F;R120R;"),
-            (f"desenha um L de {tamanho}cm",
-             f"D{tamanho}F;R90R;D{tamanho//2}F;"),
-            (f"faz um retângulo de {tamanho}cm por {tamanho//2}cm",
-             f"D{tamanho}F;R90R;D{tamanho//2}F;R90R;D{tamanho}F;R90R;D{tamanho//2}F;R90R;"),
-            (f"desenha uma cruz",
-             f"D{tamanho}F;D{tamanho//2}B;R90R;D{tamanho//2}R;D{tamanho}L;"),
-            (f"faz um T",
-             f"D{tamanho}F;D{tamanho//2}B;R90R;D{tamanho//2}R;D{tamanho}L;"),
-            (f"desenha um hexágono de {tamanho}cm",
-             f"D{tamanho}F;R60R;D{tamanho}F;R60R;D{tamanho}F;R60R;D{tamanho}F;R60R;D{tamanho}F;R60R;D{tamanho}F;R60R;"),
-            (f"faz um pentágono de {tamanho}cm",
-             f"D{tamanho}F;R72R;D{tamanho}F;R72R;D{tamanho}F;R72R;D{tamanho}F;R72R;D{tamanho}F;R72R;"),
-            (f"desenha um zigue-zague",
-             f"D{tamanho//2}F;R45R;D{tamanho//2}F;R45L;D{tamanho//2}F;R45R;D{tamanho//2}F;")
-        ]
-        
-        forma = random.choice(formas)
-        entrada = forma[0]
-        
-        if random.random() < 0.2:
-            entrada = random.choice(["por favor, ", "agora ", "pode ", ""]) + entrada
-        
-        dataset.append((entrada.strip(), forma[1]))
+    return exemplos
+
+# ============================================================================
+# GERAÇÃO DO DATASET
+# ============================================================================
+
+def gerar_dataset_completo():
+    """Gera o dataset completo com ~150k exemplos (compatível com V3)"""
+    print("🤖 Gerando Dataset LBML V4 - Escala Completa")
+    print("=" * 70)
+    print("⚠️  Isso pode levar alguns minutos...")
+    print("=" * 70)
     
-    # 9. Comandos com repetição (10.000)
-    print("Gerando comandos com repetição...")
-    for i in range(10000):
-        if i % 2000 == 0:
-            print(f"  {i}/10000...")
-        
-        num_rep = random.choice([2, 3, 4, 5])
-        valor = random.choice([20, 30, 40, 50, 60])
-        
-        repeticoes = [
-            (f"dá {num_rep} passos pra frente",
-             "".join([f"D30F;" for _ in range(num_rep)])),
-            (f"anda {num_rep} vezes {valor}cm pra frente",
-             "".join([f"D{valor}F;" for _ in range(num_rep)])),
-            (f"gira {num_rep} vezes",
-             "".join([f"R360R;" for _ in range(num_rep)])),
-            (f"faz {num_rep} giros de 90 graus",
-             "".join([f"R90R;" for _ in range(num_rep)])),
-            (f"vai e volta {valor}cm",
-             f"D{valor}F;D{valor}B;"),
-            (f"anda pra frente e volta {num_rep} vezes",
-             "".join([f"D{valor}F;D{valor}B;" for _ in range(num_rep)])),
-            (f"repete {num_rep} vezes: anda {valor}cm",
-             "".join([f"D{valor}F;" for _ in range(num_rep)])),
-            (f"faz {num_rep} movimentos de {valor}cm",
-             "".join([f"D{valor}F;" for _ in range(num_rep)]))
-        ]
-        
-        rep = random.choice(repeticoes)
-        dataset.append((rep[0], rep[1]))
+    todos_exemplos = []
     
-    # 10. Comandos criativos/interpretativos (10.000)
-    print("Gerando comandos criativos...")
-    comandos_criativos = [
-        ("faz uma dancinha", "D20F;R90L;D20B;R90R;D20F;R180L;"),
-        ("balança pra lá e pra cá", "D30L;D60R;D30L;"),
-        ("faz um vai e vem", "D50F;D50B;D50F;D50B;"),
-        ("simula uma caminhada", "D30F;D30F;D30F;"),
-        ("faz um movimento circular", "D20F;R90R;D20F;R90R;D20F;R90R;D20F;R90R;"),
-        ("imita um pêndulo", "R30L;R60R;R60L;R30R;"),
-        ("desenha um oito", "D30F;R90R;D30F;R90R;D30F;R90R;D30F;R90L;D30F;R90L;D30F;R90L;D30F;R90L;"),
-        ("faz uma espiral", "D20F;R90R;D30F;R90R;D40F;R90R;D50F;R90R;"),
-        ("explora o ambiente", "D50F;R90R;D30F;R90L;D40F;R180R;D20F;"),
-        ("faz uma patrulha", "D100F;R90R;D100F;R90R;D100F;R90R;D100F;R90R;"),
-        ("circula", "D50F;R90R;D50F;R90R;D50F;R90R;D50F;R90R;"),
-        ("foge", "D300F;"),
-        ("escapa", "D200B;R90L;D150F;"),
-        ("procura algo", "R90L;R180R;R90L;D50F;"),
-        ("investiga", "D30F;R45R;D20F;R45L;D30F;"),
-        ("contorna", "R90L;D50F;R90R;D100F;R90R;D50F;R90L;"),
-        ("desvia", "R45L;D50F;R45R;"),
-        ("serpenteia", "D30F;R30R;D30F;R30L;D30F;R30R;D30F;"),
-        ("ziguezagueia", "D40F;R60R;D40F;R60L;D40F;R60R;"),
-        ("rodopia", "R720R;"),
-        ("dá uma pirueta", "R360R;"),
-        ("faz uma manobra", "D50B;R180R;D100F;"),
-        ("estaciona", "D30F;R90R;D20R;"),
-        ("faz uma curva fechada", "D20F;R90R;D20F;"),
-        ("faz uma curva aberta", "D50F;R45R;D50F;")
-    ]
+    # Deslocamento simples (~40k)
+    print("📍 Gerando deslocamentos simples (4 direções)...")
+    exemplos_desl = gerar_deslocamento_simples(num_exemplos_por_direcao=10000)
+    todos_exemplos.extend(exemplos_desl)
+    print(f"   ✅ {len(exemplos_desl):,} exemplos")
     
-    for i in range(10000):
-        if i % 2000 == 0:
-            print(f"  {i}/10000...")
-        
-        cmd, saida = random.choice(comandos_criativos)
-        
-        if random.random() < 0.2:
-            cmd = random.choice(["agora ", "pode ", "tenta ", ""]) + cmd
-        
-        dataset.append((cmd.strip(), saida))
+    # Rotação simples (~30k)
+    print("🔄 Gerando rotações simples (2 direções)...")
+    exemplos_rot = gerar_rotacao_simples(num_exemplos_por_direcao=15000)
+    todos_exemplos.extend(exemplos_rot)
+    print(f"   ✅ {len(exemplos_rot):,} exemplos")
     
-    # Embaralhar dataset
-    print("Embaralhando dataset...")
-    random.shuffle(dataset)
+    # Comandos compostos (~80k)
+    print("🔗 Gerando comandos compostos (2-5 ações)...")
+    exemplos_comp = gerar_comandos_compostos(
+        num_2_acoes=40000,
+        num_3_acoes=25000,
+        num_4plus_acoes=15000
+    )
+    todos_exemplos.extend(exemplos_comp)
+    print(f"   ✅ {len(exemplos_comp):,} exemplos")
     
-    # Salvar arquivo
-    print("Salvando arquivo...")
-    with open('lbot_dataset_v4.txt', 'w', encoding='utf-8') as f:
-        for i, (entrada, saida) in enumerate(dataset):
-            if i % 10000 == 0 and i > 0:
-                print(f"  Salvando: {i}/150000...")
+    # Conversão de unidades (~10k)
+    print("📏 Gerando conversões de unidades...")
+    exemplos_unid = gerar_conversao_unidades(
+        num_metros=5000,
+        num_mm=3000,
+        num_especiais=2000
+    )
+    todos_exemplos.extend(exemplos_unid)
+    print(f"   ✅ {len(exemplos_unid):,} exemplos")
+    
+    # Variações linguísticas (~5k)
+    print("🌐 Gerando variações linguísticas...")
+    exemplos_var = gerar_variacoes_linguisticas(num_variacoes=5000)
+    todos_exemplos.extend(exemplos_var)
+    print(f"   ✅ {len(exemplos_var):,} exemplos")
+    
+    # Embaralhar
+    print("🔀 Embaralhando exemplos...")
+    random.shuffle(todos_exemplos)
+    
+    print("=" * 70)
+    print(f"📊 TOTAL: {len(todos_exemplos):,} exemplos gerados!")
+    print(f"📊 Comparação: V3 tinha ~143k exemplos")
+    print("=" * 70)
+    
+    return todos_exemplos
+
+def salvar_dataset(exemplos, nome_arquivo="lbot_dataset_v4.txt"):
+    """Salva o dataset em formato texto"""
+    caminho = os.path.join(os.path.dirname(__file__), nome_arquivo)
+    
+    with open(caminho, 'w', encoding='utf-8') as f:
+        for entrada, saida in exemplos:
             f.write(f"Entrada: {entrada}\n")
             f.write(f"Saída: {saida}\n\n")
     
-    print(f"\n✅ Dataset 'lbot_dataset_v4.txt' gerado com sucesso!")
-    print(f"Total de exemplos: {len(dataset)}")
+    print(f"💾 Dataset salvo em: {caminho}")
+    return caminho
+
+def validar_dataset(exemplos):
+    """Valida alguns exemplos do dataset"""
+    print("\n✅ Validação de Exemplos:")
+    print("=" * 60)
     
-    # Estatísticas
-    print("\n📊 Estatísticas do dataset:")
-    mov_frente = sum(1 for _, s in dataset if 'DF' in s)
-    mov_tras = sum(1 for _, s in dataset if 'DB' in s)
-    mov_lateral = sum(1 for _, s in dataset if 'DL' in s or 'DR' in s)
-    rotacoes = sum(1 for _, s in dataset if 'R' in s and 'D' not in s)
-    compostos = sum(1 for _, s in dataset if 'D' in s and 'R' in s)
+    amostras = random.sample(exemplos, min(10, len(exemplos)))
+    for i, (entrada, saida) in enumerate(amostras, 1):
+        print(f"{i:2d}. '{entrada}'")
+        print(f"    → '{saida}'")
     
-    print(f"  - Movimentos para frente: {mov_frente:,}")
-    print(f"  - Movimentos para trás: {mov_tras:,}")
-    print(f"  - Movimentos laterais: {mov_lateral:,}")
-    print(f"  - Apenas rotações: {rotacoes:,}")
-    print(f"  - Comandos compostos: {compostos:,}")
+    print("=" * 60)
+
+# ============================================================================
+# EXECUÇÃO PRINCIPAL
+# ============================================================================
 
 if __name__ == "__main__":
-    start_time = datetime.now()
-    gerar_dataset_lbml_massivo()
-    end_time = datetime.now()
-    print(f"\n⏱️ Tempo de execução: {end_time - start_time}")
-    print(f"📁 Arquivo 'lbot_dataset_v4.txt' pronto para uso!")
+    # Gerar dataset
+    dataset = gerar_dataset_completo()
+    
+    # Validar
+    validar_dataset(dataset)
+    
+    # Salvar
+    arquivo = salvar_dataset(dataset)
+    
+    print("\n🎉 Dataset V4 pronto para treinamento!")
+    print(f"📌 Próximo passo: Treinar o modelo com este dataset")
