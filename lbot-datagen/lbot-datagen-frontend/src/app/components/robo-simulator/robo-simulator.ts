@@ -36,6 +36,10 @@ import * as CANNON from 'cannon-es';
           <span class="status-label">Comando:</span>
           <span class="status-value" [textContent]="currentCommand"></span>
         </div>
+        <div class="status-item distance-item">
+          <span class="status-label">Distância até B:</span>
+          <span class="status-value" [textContent]="getDistanceToGoal().toFixed(1)"></span>
+        </div>
       </div>
       <div class="buttons-container">
         <button class="reset-button" (click)="resetRobot()" [disabled]="robotState.isAnimating">
@@ -44,9 +48,15 @@ import * as CANNON from 'cannon-es';
         <button class="camera-button" (click)="toggleCameraMode()" [disabled]="robotState.isAnimating">
           📹 {{ cameraController.isThirdPersonView() ? 'Vista Normal' : '3ª Pessoa' }}
         </button>
+        <button class="goal-button" (click)="randomizeGoal()" [disabled]="robotState.isAnimating">
+          🎯 Nova Posição B
+        </button>
       </div>
       <div class="indicator" [style.display]="robotState.isAnimating ? 'block' : 'none'">
         EXECUTANDO...
+      </div>
+      <div class="victory" [style.display]="hasWon ? 'block' : 'none'">
+        🎉 PARABÉNS! Você chegou ao ponto B! 🎉
       </div>
       <div class="error" [style.display]="errorMessage ? 'block' : 'none'" [textContent]="errorMessage">
       </div>
@@ -78,6 +88,14 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   robotState: RobotState = { x: 0, z: 0, rotation: 0, isAnimating: false };
   currentCommand = '-';
   errorMessage = '';
+  
+  // Game state
+  startPoint = { x: -80, z: -80 };
+  goalPoint = { x: 80, z: 80 };
+  hasWon = false;
+  private startMarker!: THREE.Mesh;
+  private goalMarker!: THREE.Mesh;
+  private readonly WIN_DISTANCE = 15;
 
   // Throttle para atualizações do estado
   private lastStateUpdate = 0;
@@ -98,6 +116,12 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
   getRotationDisplay(): string {
     return Math.round(this.robotState.rotation % 360) + '°';
+  }
+  
+  getDistanceToGoal(): number {
+    const dx = this.goalPoint.x - this.robotState.x;
+    const dz = this.goalPoint.z - this.robotState.z;
+    return Math.sqrt(dx * dx + dz * dz);
   }
 
   ngOnInit(): void {
@@ -144,6 +168,9 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
 
     // Create obstacles
     this.obstacles = this.arenaBuilder.createObstacles(this.scene, this.world);
+    
+    // Create game markers
+    this.createGameMarkers();
 
     // Setup camera controls
     this.cameraController.setupEventListeners(
@@ -181,6 +208,9 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
             const euler = new CANNON.Vec3();
             this.robotBody.quaternion.toEuler(euler);
             this.robotState.rotation = euler.y * 180 / Math.PI;
+            
+            // Check win condition
+            this.checkWinCondition();
 
             this.cdr.detectChanges();
           });
@@ -356,13 +386,19 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
 
   resetRobot(): void {
-    this.physics.resetRobotBody(this.robotBody);
+    this.robotBody.position.set(this.startPoint.x, 0.5, this.startPoint.z);
+    this.robotBody.velocity.set(0, 0, 0);
+    this.robotBody.angularVelocity.set(0, 0, 0);
+    const quaternion = new CANNON.Quaternion();
+    quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), 0);
+    this.robotBody.quaternion.copy(quaternion);
 
     this.ngZone.run(() => {
-      this.robotState.x = 0;
-      this.robotState.z = 0;
+      this.robotState.x = this.startPoint.x;
+      this.robotState.z = this.startPoint.z;
       this.robotState.rotation = 0;
       this.currentCommand = '-';
+      this.hasWon = false;
       this.cdr.detectChanges();
     });
   }
@@ -387,5 +423,118 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
         this.cdr.detectChanges();
       });
     }, 2000);
+  }
+  
+  private createGameMarkers(): void {
+    // Criar marcador de início (ponto A) - verde
+    const startGeometry = new THREE.CylinderGeometry(8, 8, 2, 32);
+    const startMaterial = new THREE.MeshStandardMaterial({
+      color: 0x00ff00,
+      emissive: 0x00ff00,
+      emissiveIntensity: 0.3,
+      metalness: 0.3,
+      roughness: 0.7
+    });
+    this.startMarker = new THREE.Mesh(startGeometry, startMaterial);
+    this.startMarker.position.set(this.startPoint.x, 0.1, this.startPoint.z);
+    this.startMarker.castShadow = true;
+    this.startMarker.receiveShadow = true;
+    this.scene.add(this.startMarker);
+    
+    // Adicionar texto 'A' no marcador de início
+    const startTextSprite = this.createTextSprite('A', 0x00ff00);
+    startTextSprite.position.set(this.startPoint.x, 10, this.startPoint.z);
+    this.scene.add(startTextSprite);
+    
+    // Criar marcador de objetivo (ponto B) - vermelho
+    const goalGeometry = new THREE.CylinderGeometry(8, 8, 2, 32);
+    const goalMaterial = new THREE.MeshStandardMaterial({
+      color: 0xff0000,
+      emissive: 0xff0000,
+      emissiveIntensity: 0.3,
+      metalness: 0.3,
+      roughness: 0.7
+    });
+    this.goalMarker = new THREE.Mesh(goalGeometry, goalMaterial);
+    this.goalMarker.position.set(this.goalPoint.x, 0.1, this.goalPoint.z);
+    this.goalMarker.castShadow = true;
+    this.goalMarker.receiveShadow = true;
+    this.scene.add(this.goalMarker);
+    
+    // Adicionar texto 'B' no marcador de objetivo
+    const goalTextSprite = this.createTextSprite('B', 0xff0000);
+    goalTextSprite.position.set(this.goalPoint.x, 10, this.goalPoint.z);
+    this.scene.add(goalTextSprite);
+  }
+  
+  private createTextSprite(text: string, color: number): THREE.Sprite {
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d')!;
+    canvas.width = 128;
+    canvas.height = 128;
+    
+    context.fillStyle = '#' + color.toString(16).padStart(6, '0');
+    context.font = 'bold 80px Arial';
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+    context.fillText(text, 64, 64);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture });
+    const sprite = new THREE.Sprite(material);
+    sprite.scale.set(20, 20, 1);
+    
+    return sprite;
+  }
+  
+  private checkWinCondition(): void {
+    if (!this.hasWon && !this.robotState.isAnimating) {
+      const distance = this.getDistanceToGoal();
+      if (distance < this.WIN_DISTANCE) {
+        this.hasWon = true;
+        this.celebrateVictory();
+      }
+    }
+  }
+  
+  private celebrateVictory(): void {
+    // Animação de pulsação no marcador B
+    let scale = 1;
+    let growing = true;
+    const pulseInterval = setInterval(() => {
+      if (growing) {
+        scale += 0.1;
+        if (scale >= 1.5) growing = false;
+      } else {
+        scale -= 0.1;
+        if (scale <= 1) growing = true;
+      }
+      this.goalMarker.scale.set(scale, scale, scale);
+    }, 50);
+    
+    setTimeout(() => {
+      clearInterval(pulseInterval);
+      this.goalMarker.scale.set(1, 1, 1);
+    }, 3000);
+  }
+  
+  randomizeGoal(): void {
+    // Gera nova posição aleatória para o ponto B
+    const range = 150;
+    this.goalPoint.x = (Math.random() - 0.5) * range;
+    this.goalPoint.z = (Math.random() - 0.5) * range;
+    
+    // Atualiza a posição do marcador
+    this.goalMarker.position.set(this.goalPoint.x, 0.1, this.goalPoint.z);
+    
+    // Atualiza o sprite de texto
+    const sprites = this.scene.children.filter(child => child instanceof THREE.Sprite);
+    const goalSprite = sprites[sprites.length - 1] as THREE.Sprite;
+    if (goalSprite) {
+      goalSprite.position.set(this.goalPoint.x, 10, this.goalPoint.z);
+    }
+    
+    this.hasWon = false;
+    this.cdr.detectChanges();
   }
 }
