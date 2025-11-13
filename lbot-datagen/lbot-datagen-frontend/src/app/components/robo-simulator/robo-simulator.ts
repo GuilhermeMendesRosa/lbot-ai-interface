@@ -42,9 +42,6 @@ import * as CANNON from 'cannon-es';
         </div>
       </div>
       <div class="buttons-container">
-        <button class="reset-button" (click)="resetRobot()" [disabled]="robotState.isAnimating">
-          🔄 Resetar Posição
-        </button>
         <button class="camera-button" (click)="toggleCameraMode()" [disabled]="robotState.isAnimating">
           📹 {{ cameraController.isThirdPersonView() ? 'Vista Normal' : '3ª Pessoa' }}
         </button>
@@ -175,6 +172,9 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     
     // Create game markers
     this.createGameMarkers();
+    
+    // Generate initial level positions and place robot at start point A
+    this.generateNewLevel();
 
     // Setup camera controls
     this.cameraController.setupEventListeners(
