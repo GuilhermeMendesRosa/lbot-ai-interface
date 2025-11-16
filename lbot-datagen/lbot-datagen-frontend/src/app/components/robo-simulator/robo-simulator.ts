@@ -42,6 +42,10 @@ import * as CANNON from 'cannon-es';
           <span class="status-value" [textContent]="getDistanceToGoal().toFixed(1)"></span>
         </div>
       </div>
+      <div class="score-counter">
+        <div class="score-label">PONTOS</div>
+        <div class="score-value" [textContent]="score"></div>
+      </div>
       <div class="buttons-container">
         <button class="camera-button" (click)="toggleCameraMode()" [disabled]="robotState.isAnimating">
           <lucide-icon [img]="CameraIcon" [size]="18" style="vertical-align: middle; margin-right: 4px;"></lucide-icon>{{ cameraController.isThirdPersonView() ? 'Vista Normal' : '3ª Pessoa' }}
@@ -95,11 +99,12 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   startPoint = { x: -80, z: -80 };
   goalPoint = { x: 80, z: 80 };
   hasWon = false;
+  score = 0;
   private startMarker!: THREE.Mesh;
   private goalMarker!: THREE.Mesh;
   private startTextSprite!: THREE.Sprite;
   private goalTextSprite!: THREE.Sprite;
-  private readonly WIN_DISTANCE = 15;
+  private readonly WIN_DISTANCE = 25;
   private readonly MIN_DISTANCE_AB = 250; // Distância mínima entre A e B (bem grande para desafio)
   private readonly MIN_OBSTACLE_DISTANCE = 20; // Distância mínima dos obstáculos
 
@@ -501,6 +506,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
       const distance = this.getDistanceToGoal();
       if (distance < this.WIN_DISTANCE) {
         this.hasWon = true;
+        this.score++;
         this.celebrateVictory();
       }
     }
