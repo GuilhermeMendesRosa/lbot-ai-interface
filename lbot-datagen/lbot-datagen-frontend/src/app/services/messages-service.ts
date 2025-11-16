@@ -1,7 +1,10 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
+/**
+ * Data Transfer Object for chat sessions.
+ */
 export interface ChatDto {
   id: string;
   createdAt: string;
@@ -9,6 +12,9 @@ export interface ChatDto {
   observation: string | null;
 }
 
+/**
+ * Data Transfer Object for individual messages.
+ */
 export interface MessageDto {
   id: string;
   prompt: string;
@@ -18,54 +24,78 @@ export interface MessageDto {
   chatId: string;
 }
 
+/**
+ * Request payload for sending a new message.
+ */
 export interface MessageRequest {
   prompt: string;
   chatId: string;
 }
 
+/**
+ * Request payload for evaluating a message.
+ */
 export interface EvaluateRequest {
   messageId: string;
   grade: number;
 }
 
+/**
+ * Response from message evaluation endpoint.
+ */
 export interface EvaluateResponse {
   success: boolean;
   message?: string;
-  // adicione outros campos conforme a resposta da sua API de avaliação
 }
 
+/**
+ * Service responsible for managing chat messages and communication with the backend API.
+ * Handles chat initialization, message sending, and message evaluation.
+ */
 @Injectable({
   providedIn: 'root'
 })
 export class MessagesService {
-  private baseUrl = 'https://lbot-ai-interface-production.up.railway.app';
+  private readonly baseUrl = 'https://lbot-ai-interface-production.up.railway.app';
+  private readonly defaultHeaders = new HttpHeaders({
+    'Content-Type': 'application/json'
+  });
 
-  constructor(private http: HttpClient) { }
+  constructor(private readonly http: HttpClient) { }
 
-  // Iniciar um novo chat
-  startChat(): Observable<ChatDto> {
+  /**
+   * Initializes a new chat session.
+   * @returns Observable with the created chat data
+   */
+  public startChat(): Observable<ChatDto> {
     return this.http.get<ChatDto>(`${this.baseUrl}/chats`, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers: this.defaultHeaders
     });
   }
 
-  // Enviar mensagem
-  sendMessage(request: MessageRequest): Observable<MessageDto> {
-    return this.http.post<MessageDto>(`${this.baseUrl}/messages`, request, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+  /**
+   * Sends a message to the backend for processing.
+   * @param request - The message request containing prompt and chat ID
+   * @returns Observable with the message response including LBML output
+   */
+  public sendMessage(request: MessageRequest): Observable<MessageDto> {
+    return this.http.post<MessageDto>(
+      `${this.baseUrl}/messages`,
+      request,
+      { headers: this.defaultHeaders }
+    );
   }
 
-  // Avaliar mensagem
-  evaluateMessage(request: EvaluateRequest): Observable<EvaluateResponse> {
-    return this.http.post<EvaluateResponse>(`${this.baseUrl}/messages/evaluate`, request, {
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    });
+  /**
+   * Submits an evaluation/rating for a specific message.
+   * @param request - The evaluation request with message ID and grade
+   * @returns Observable with the evaluation response
+   */
+  public evaluateMessage(request: EvaluateRequest): Observable<EvaluateResponse> {
+    return this.http.post<EvaluateResponse>(
+      `${this.baseUrl}/messages/evaluate`,
+      request,
+      { headers: this.defaultHeaders }
+    );
   }
 }

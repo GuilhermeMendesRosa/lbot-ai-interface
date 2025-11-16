@@ -1,13 +1,18 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { LbotChat } from './components/lbot-chat/lbot-chat';
 import { RoboSimulatorComponent } from './components/robo-simulator/robo-simulator';
 
+/**
+ * Root component of the LBot DataGen application.
+ * Provides the main layout structure with simulator and chat interface.
+ */
 @Component({
   selector: 'app-root',
   imports: [LbotChat, RoboSimulatorComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
+  standalone: true
 })
-export class App {
-  protected readonly title = signal('lbot-datagen-frontend');
+export class AppComponent {
+  protected readonly appTitle = 'LBot DataGen Frontend';
 }

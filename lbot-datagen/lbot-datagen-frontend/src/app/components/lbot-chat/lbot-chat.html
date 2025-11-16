@@ -1,7 +1,7 @@
 <!-- lbot-chat.component.html -->
 <div class="chat-wrapper">
   <div class="chat-header">
-    <h2>🤖 LBot Translator</h2>
+    <h2><lucide-icon [img]="BotIcon" [size]="24" style="vertical-align: middle; margin-right: 8px;"></lucide-icon>LBot Translator</h2>
     <button class="end-chat-btn" (click)="showObservationPopup()" title="Finalizar Chat">
       ✕
     </button>
@@ -27,7 +27,7 @@
                   *ngFor="let star of [1, 2, 3, 4, 5]" 
                   (click)="quickRate(message.messageId!, star, $event)"
                   [title]="getStarTitle(star)">
-            ⭐
+            <lucide-icon [img]="StarIcon" [size]="18"></lucide-icon>
           </button>
         </div>
         
@@ -35,7 +35,7 @@
         <div *ngIf="message.messageId && message.rated" class="selected-rating">
           <span class="rating-stars">
             <span *ngFor="let star of [1, 2, 3, 4, 5]" class="star-display" [class.filled]="star <= message.rating!">
-              ⭐
+              <lucide-icon [img]="StarIcon" [size]="18"></lucide-icon>
             </span>
           </span>
           <span class="rating-text">Avaliado ({{ message.rating }}/5)</span>

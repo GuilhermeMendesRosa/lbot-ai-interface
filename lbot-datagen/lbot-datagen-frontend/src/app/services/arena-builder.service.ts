@@ -249,7 +249,7 @@ export class ArenaBuilderService {
       obstacles.push({ mesh, body });
     });
 
-    console.log('� Arena criada com', obstacles.length, 'obstáculos');
+    console.log('[ArenaBuilder] Arena criada com', obstacles.length, 'obstáculos');
     return obstacles;
   }
 

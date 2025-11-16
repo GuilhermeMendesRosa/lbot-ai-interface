@@ -1,19 +1,18 @@
-// app.config.ts
-import { ApplicationConfig, provideBrowserGlobalErrorListeners, provideZoneChangeDetection } from '@angular/core';
+import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
-
-import { routes } from './app.routes';
 import { provideClientHydration, withEventReplay } from '@angular/platform-browser';
-import { LbotChat } from './components/lbot-chat/lbot-chat';
+import { routes } from './app.routes';
 
+/**
+ * Application configuration for the LBot DataGen frontend.
+ * Defines all providers needed for the application to run.
+ */
 export const appConfig: ApplicationConfig = {
   providers: [
-    provideBrowserGlobalErrorListeners(),
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideClientHydration(withEventReplay()),
-    provideHttpClient(withFetch()),
-    LbotChat
+    provideHttpClient(withFetch())
   ]
 };

@@ -1,5 +1,6 @@
 import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit, Inject, PLATFORM_ID, ChangeDetectorRef, NgZone } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { LucideAngularModule, Camera, Target } from 'lucide-angular';
 import { SimulatorBridgeService, SimulatorCommand } from '../../services/simulator-bridge.service';
 import { ThreeSceneService } from '../../services/three-scene.service';
 import { PhysicsService } from '../../services/physics.service';
@@ -16,7 +17,7 @@ import * as CANNON from 'cannon-es';
 @Component({
   selector: 'app-robo-simulator',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LucideAngularModule],
   template: `
     <div class="simulator-container" #canvasContainer>
       <div class="status">
@@ -43,17 +44,17 @@ import * as CANNON from 'cannon-es';
       </div>
       <div class="buttons-container">
         <button class="camera-button" (click)="toggleCameraMode()" [disabled]="robotState.isAnimating">
-          📹 {{ cameraController.isThirdPersonView() ? 'Vista Normal' : '3ª Pessoa' }}
+          <lucide-icon [img]="CameraIcon" [size]="18" style="vertical-align: middle; margin-right: 4px;"></lucide-icon>{{ cameraController.isThirdPersonView() ? 'Vista Normal' : '3ª Pessoa' }}
         </button>
         <button class="goal-button" (click)="generateNewLevel()" [disabled]="robotState.isAnimating">
-          🎯 Novo Desafio
+          <lucide-icon [img]="TargetIcon" [size]="18" style="vertical-align: middle; margin-right: 4px;"></lucide-icon>Novo Desafio
         </button>
       </div>
       <div class="indicator" [style.display]="robotState.isAnimating ? 'block' : 'none'">
         EXECUTANDO...
       </div>
       <div class="victory" [style.display]="hasWon ? 'block' : 'none'">
-        🎉 PARABÉNS! Você chegou ao ponto B! 🎉
+        PARABÉNS! Você chegou ao ponto B!
       </div>
       <div class="error" [style.display]="errorMessage ? 'block' : 'none'" [textContent]="errorMessage">
       </div>
@@ -85,6 +86,10 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   robotState: RobotState = { x: 0, z: 0, rotation: 0, isAnimating: false };
   currentCommand = '-';
   errorMessage = '';
+  
+  // Icons
+  readonly CameraIcon = Camera;
+  readonly TargetIcon = Target;
   
   // Game state
   startPoint = { x: -80, z: -80 };
