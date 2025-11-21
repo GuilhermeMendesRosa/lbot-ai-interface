@@ -169,14 +169,28 @@ O V5.1 usa o **mesmo dataset do V5** (`lbot_dataset_v5-1.txt`):
 1. ✅ Melhor acurácia em comandos compostos (+2-5%)
 2. ✅ Matriz `relation_bias` deve mostrar relações espaciais claras
 3. ✅ Maior robustez em sequências com múltiplas direções
-4. ⚠️ Overhead computacional aceitável (+15% parâmetros, +20% tempo)
+4. ✅ `relation_scale` entre 0.2-0.5 após treinamento
+5. ⚠️ Overhead computacional aceitável (+15% parâmetros, +20% tempo)
 
 **Se RASA não ajuda**:
 
 1. ❌ Acurácia similar ou pior que V5
 2. ❌ Matriz `relation_bias` não aprende padrões claros
 3. ❌ Overfitting (val_loss maior que V5)
-4. ❌ Overhead não justifica ganho mínimo
+4. ❌ `relation_scale` permanece muito pequeno (<0.1) ou explode (>0.7)
+5. ❌ Overhead não justifica ganho mínimo
+
+## ⚠️ Nota sobre Versão Anterior
+
+**Primeira implementação tinha bug**: RASA sem escala causava repetições triplicadas.
+
+**Versão corrigida** (atual):
+- ✅ Adiciona `relation_scale` aprendível
+- ✅ Dropout no bias relacional
+- ✅ Monitoramento da escala durante treinamento
+- ✅ Inicialização conservadora (0.1)
+
+**Se você testou versão anterior**: Re-treine com código atualizado.
 
 ## 🔄 Workflow de Comparação
 
@@ -250,17 +264,52 @@ class Block:
 
 ## 🔧 Troubleshooting
 
+### ⚠️ Problema: Repetições Incorretas (RESOLVIDO)
+
+**Sintoma**: Modelo gera comandos triplicados
+- Exemplo: "vá 40cm frente" → `D40F;D40F;D40F;` ❌
+
+**Causa**: Bias relacional amplificando excessivamente a atenção
+
+**Solução aplicada** (3 correções):
+
+1. **Relation Scale** (escala aprendível):
+   ```python
+   self.relation_scale = nn.Parameter(torch.tensor(0.1))
+   rel_bias = rel_bias * torch.sigmoid(self.relation_scale)
+   ```
+   - Inicializado pequeno (0.1)
+   - Sigmoid mantém entre 0-1
+   - Aprende força ideal automaticamente
+
+2. **Dropout no bias**:
+   ```python
+   rel_bias = self.dropout(rel_bias)
+   ```
+   - Regularização extra
+   - Evita overfitting nas relações
+
+3. **Monitoramento**:
+   - Log da `relation_scale` a cada 200 iterações
+   - Valor ideal: 0.2-0.5
+
+**Status**: ✅ Corrigido na versão atual do notebook
+
+---
+
 ### Modelo não converge
 
 - Verifique learning rate (deve ser 1e-3)
 - Aumente max_iters se necessário
 - Verifique se dataset foi carregado corretamente
+- **Novo**: Monitore `relation_scale` - deve crescer gradualmente
 
 ### Acurácia pior que V5
 
 - RASA pode precisar mais iterações para convergir
-- Tente aumentar dropout (0.2 → 0.25) para evitar overfitting
-- Verifique se relation_bias está sendo atualizado (requer_grad=True)
+- Verifique se `relation_scale` está muito pequeno (<0.1) ou muito grande (>0.7)
+- Se scale não cresce: aumentar learning rate ou remover sigmoid
+- Se scale explode: aumentar dropout ou inicializar menor
 
 ### Out of memory
 
