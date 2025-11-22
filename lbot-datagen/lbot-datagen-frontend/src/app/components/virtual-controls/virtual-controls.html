@@ -1,0 +1,163 @@
+<div class="virtual-controls-container">
+  <div class="header">
+    <h2>Controles Virtuais</h2>
+    <p class="subtitle">Use os botões para planejar o movimento do robô</p>
+  </div>
+
+  <!-- Movement Controls Section -->
+  <div class="controls-section">
+    <h3>Movimento (10cm por clique)</h3>
+    
+    <div class="directional-controls">
+      <!-- Forward Button -->
+      <div class="control-row center">
+        <button 
+          class="control-btn direction-btn forward" 
+          (click)="moveForward()"
+          [disabled]="isExecuting"
+          title="Mover para frente">
+          <span class="arrow">↑</span>
+          <span class="label">Frente</span>
+        </button>
+      </div>
+
+      <!-- Left, Center Display, Right -->
+      <div class="control-row space-between">
+        <button 
+          class="control-btn direction-btn left" 
+          (click)="moveLeft()"
+          [disabled]="isExecuting"
+          title="Mover para esquerda">
+          <span class="arrow">←</span>
+          <span class="label">Esquerda</span>
+        </button>
+
+        <div class="center-display">
+          <div class="robot-icon">🤖</div>
+        </div>
+
+        <button 
+          class="control-btn direction-btn right" 
+          (click)="moveRight()"
+          [disabled]="isExecuting"
+          title="Mover para direita">
+          <span class="arrow">→</span>
+          <span class="label">Direita</span>
+        </button>
+      </div>
+
+      <!-- Backward Button -->
+      <div class="control-row center">
+        <button 
+          class="control-btn direction-btn backward" 
+          (click)="moveBackward()"
+          [disabled]="isExecuting"
+          title="Mover para trás">
+          <span class="arrow">↓</span>
+          <span class="label">Trás</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Movement Indicators -->
+    <div class="indicators-grid">
+      <div class="indicator" *ngIf="controlState.forward > 0">
+        <span class="indicator-label">↑ Frente:</span>
+        <span class="indicator-value">{{controlState.forward}}cm</span>
+        <button class="undo-btn" (click)="undoForward()" title="Desfazer">−</button>
+      </div>
+      <div class="indicator" *ngIf="controlState.backward > 0">
+        <span class="indicator-label">↓ Trás:</span>
+        <span class="indicator-value">{{controlState.backward}}cm</span>
+        <button class="undo-btn" (click)="undoBackward()" title="Desfazer">−</button>
+      </div>
+      <div class="indicator" *ngIf="controlState.left > 0">
+        <span class="indicator-label">← Esquerda:</span>
+        <span class="indicator-value">{{controlState.left}}cm</span>
+        <button class="undo-btn" (click)="undoLeft()" title="Desfazer">−</button>
+      </div>
+      <div class="indicator" *ngIf="controlState.right > 0">
+        <span class="indicator-label">→ Direita:</span>
+        <span class="indicator-value">{{controlState.right}}cm</span>
+        <button class="undo-btn" (click)="undoRight()" title="Desfazer">−</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rotation Controls Section -->
+  <div class="controls-section">
+    <h3>Rotação (10° por clique)</h3>
+    
+    <div class="rotation-controls">
+      <button 
+        class="control-btn rotation-btn rotate-left" 
+        (click)="rotateLeft()"
+        [disabled]="isExecuting"
+        title="Girar para esquerda">
+        <span class="arrow">↺</span>
+        <span class="label">Girar Esquerda</span>
+      </button>
+
+      <button 
+        class="control-btn rotation-btn rotate-right" 
+        (click)="rotateRight()"
+        [disabled]="isExecuting"
+        title="Girar para direita">
+        <span class="arrow">↻</span>
+        <span class="label">Girar Direita</span>
+      </button>
+    </div>
+
+    <!-- Rotation Indicators -->
+    <div class="indicators-grid">
+      <div class="indicator" *ngIf="controlState.rotateLeft > 0">
+        <span class="indicator-label">↺ Esquerda:</span>
+        <span class="indicator-value">{{controlState.rotateLeft}}°</span>
+        <button class="undo-btn" (click)="undoRotateLeft()" title="Desfazer">−</button>
+      </div>
+      <div class="indicator" *ngIf="controlState.rotateRight > 0">
+        <span class="indicator-label">↻ Direita:</span>
+        <span class="indicator-value">{{controlState.rotateRight}}°</span>
+        <button class="undo-btn" (click)="undoRotateRight()" title="Desfazer">−</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Section -->
+  <div class="summary-section" *ngIf="hasMovement()">
+    <div class="summary-item">
+      <span class="summary-label">Total de Movimento:</span>
+      <span class="summary-value">{{getTotalDistance()}}cm</span>
+    </div>
+    <div class="summary-item" *ngIf="getTotalRotation() > 0">
+      <span class="summary-label">Total de Rotação:</span>
+      <span class="summary-value">{{getTotalRotation()}}°</span>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    <button 
+      class="action-btn reset-btn" 
+      (click)="reset()"
+      [disabled]="!hasMovement() || isExecuting">
+      Limpar
+    </button>
+
+    <button 
+      class="action-btn execute-btn" 
+      (click)="execute()"
+      [disabled]="!hasMovement() || isExecuting">
+      <span *ngIf="!isExecuting">▶ Executar</span>
+      <span *ngIf="isExecuting">⏳ Executando...</span>
+    </button>
+  </div>
+
+  <!-- Description Display -->
+  <div class="description-section" *ngIf="lastDescription">
+    <div class="description-box">
+      <h4>Movimento Realizado:</h4>
+      <p>{{lastDescription}}</p>
+    </div>
+  </div>
+</div>

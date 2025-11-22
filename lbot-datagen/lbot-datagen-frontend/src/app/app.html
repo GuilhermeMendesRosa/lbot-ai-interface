@@ -3,6 +3,24 @@
     <app-robo-simulator></app-robo-simulator>
   </div>
   <div class="phone-container">
-    <app-lbot-chat></app-lbot-chat>
+    <div class="mode-toggle">
+      <button 
+        class="mode-btn" 
+        [class.active]="currentMode === 'chat'"
+        (click)="switchMode('chat')">
+        💬 Chat
+      </button>
+      <button 
+        class="mode-btn" 
+        [class.active]="currentMode === 'controls'"
+        (click)="switchMode('controls')">
+        🎮 Controles
+      </button>
+    </div>
+    
+    <div class="content-wrapper">
+      <app-lbot-chat *ngIf="currentMode === 'chat'"></app-lbot-chat>
+      <app-virtual-controls *ngIf="currentMode === 'controls'"></app-virtual-controls>
+    </div>
   </div>
 </div>
