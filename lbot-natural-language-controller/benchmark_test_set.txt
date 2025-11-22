@@ -1,0 +1,395 @@
+# LBot Benchmark Test Set
+# Conjunto de testes para comparação V5 vs V5.1 (RASA)
+# Format: Entrada: <comando> | Saída: <LBML>
+
+# ============================================================================
+# COMANDOS SIMPLES - DESLOCAMENTO (37.5% - 150 exemplos)
+# ============================================================================
+
+# Frente (Forward)
+Entrada: vá 10 centímetros para frente | Saída: D10F;
+Entrada: ande 25 centímetros para a frente | Saída: D25F;
+Entrada: mova-se 40 centímetros para frente | Saída: D40F;
+Entrada: desloque-se 50 centímetros para a frente | Saída: D50F;
+Entrada: vá 15 centímetros à frente | Saída: D15F;
+Entrada: ande 30 centímetros para frente | Saída: D30F;
+Entrada: mova-se 60 centímetros para a frente | Saída: D60F;
+Entrada: desloque-se 75 centímetros para frente | Saída: D75F;
+Entrada: vá 20 centímetros para frente | Saída: D20F;
+Entrada: ande 45 centímetros para a frente | Saída: D45F;
+Entrada: mova-se 80 centímetros para frente | Saída: D80F;
+Entrada: desloque-se 35 centímetros à frente | Saída: D35F;
+Entrada: vá 55 centímetros para frente | Saída: D55F;
+Entrada: ande 90 centímetros para frente | Saída: D90F;
+Entrada: mova-se 5 centímetros para a frente | Saída: D5F;
+Entrada: desloque-se 70 centímetros para frente | Saída: D70F;
+Entrada: vá 85 centímetros para frente | Saída: D85F;
+Entrada: ande 12 centímetros para a frente | Saída: D12F;
+Entrada: mova-se 28 centímetros para frente | Saída: D28F;
+Entrada: desloque-se 95 centímetros para frente | Saída: D95F;
+
+# Trás (Backward)
+Entrada: vá 10 centímetros para trás | Saída: D10B;
+Entrada: ande 25 centímetros para atrás | Saída: D25B;
+Entrada: mova-se 40 centímetros para trás | Saída: D40B;
+Entrada: desloque-se 50 centímetros para atrás | Saída: D50B;
+Entrada: vá 15 centímetros para trás | Saída: D15B;
+Entrada: ande 30 centímetros para atrás | Saída: D30B;
+Entrada: mova-se 60 centímetros para trás | Saída: D60B;
+Entrada: desloque-se 75 centímetros para atrás | Saída: D75B;
+Entrada: vá 20 centímetros para trás | Saída: D20B;
+Entrada: ande 45 centímetros para atrás | Saída: D45B;
+Entrada: mova-se 80 centímetros para trás | Saída: D80B;
+Entrada: desloque-se 35 centímetros para atrás | Saída: D35B;
+Entrada: vá 55 centímetros para trás | Saída: D55B;
+Entrada: ande 90 centímetros para atrás | Saída: D90B;
+Entrada: mova-se 5 centímetros para trás | Saída: D5B;
+Entrada: desloque-se 70 centímetros para atrás | Saída: D70B;
+Entrada: vá 85 centímetros para trás | Saída: D85B;
+Entrada: ande 12 centímetros para atrás | Saída: D12B;
+Entrada: mova-se 28 centímetros para trás | Saída: D28B;
+Entrada: desloque-se 95 centímetros para atrás | Saída: D95B;
+
+# Esquerda (Left)
+Entrada: vá 10 centímetros para esquerda | Saída: D10L;
+Entrada: ande 25 centímetros para a esquerda | Saída: D25L;
+Entrada: mova-se 40 centímetros à esquerda | Saída: D40L;
+Entrada: desloque-se 50 centímetros para esquerda | Saída: D50L;
+Entrada: vá 15 centímetros para a esquerda | Saída: D15L;
+Entrada: ande 30 centímetros à esquerda | Saída: D30L;
+Entrada: mova-se 60 centímetros para esquerda | Saída: D60L;
+Entrada: desloque-se 75 centímetros para a esquerda | Saída: D75L;
+Entrada: vá 20 centímetros para esquerda | Saída: D20L;
+Entrada: ande 45 centímetros à esquerda | Saída: D45L;
+Entrada: mova-se 80 centímetros para esquerda | Saída: D80L;
+Entrada: desloque-se 35 centímetros para a esquerda | Saída: D35L;
+Entrada: vá 55 centímetros para esquerda | Saída: D55L;
+Entrada: ande 90 centímetros à esquerda | Saída: D90L;
+Entrada: mova-se 5 centímetros para esquerda | Saída: D5L;
+Entrada: desloque-se 70 centímetros para a esquerda | Saída: D70L;
+Entrada: vá 85 centímetros à esquerda | Saída: D85L;
+Entrada: ande 12 centímetros para esquerda | Saída: D12L;
+Entrada: mova-se 28 centímetros para a esquerda | Saída: D28L;
+Entrada: desloque-se 95 centímetros para esquerda | Saída: D95L;
+
+# Direita (Right)
+Entrada: vá 10 centímetros para direita | Saída: D10R;
+Entrada: ande 25 centímetros para a direita | Saída: D25R;
+Entrada: mova-se 40 centímetros à direita | Saída: D40R;
+Entrada: desloque-se 50 centímetros para direita | Saída: D50R;
+Entrada: vá 15 centímetros para a direita | Saída: D15R;
+Entrada: ande 30 centímetros à direita | Saída: D30R;
+Entrada: mova-se 60 centímetros para direita | Saída: D60R;
+Entrada: desloque-se 75 centímetros para a direita | Saída: D75R;
+Entrada: vá 20 centímetros para direita | Saída: D20R;
+Entrada: ande 45 centímetros à direita | Saída: D45R;
+Entrada: mova-se 80 centímetros para direita | Saída: D80R;
+Entrada: desloque-se 35 centímetros para a direita | Saída: D35R;
+Entrada: vá 55 centímetros para direita | Saída: D55R;
+Entrada: ande 90 centímetros à direita | Saída: D90R;
+Entrada: mova-se 5 centímetros para direita | Saída: D5R;
+Entrada: desloque-se 70 centímetros para a direita | Saída: D70R;
+Entrada: vá 85 centímetros à direita | Saída: D85R;
+Entrada: ande 12 centímetros para direita | Saída: D12R;
+Entrada: mova-se 28 centímetros para a direita | Saída: D28R;
+Entrada: desloque-se 95 centímetros para direita | Saída: D95R;
+
+# Variações adicionais de deslocamento
+Entrada: vá 38 centímetros para frente | Saída: D38F;
+Entrada: ande 62 centímetros para trás | Saída: D62B;
+Entrada: mova-se 47 centímetros para esquerda | Saída: D47L;
+Entrada: desloque-se 73 centímetros para direita | Saída: D73R;
+Entrada: vá 18 centímetros para a frente | Saída: D18F;
+Entrada: ande 92 centímetros para atrás | Saída: D92B;
+Entrada: mova-se 33 centímetros à esquerda | Saída: D33L;
+Entrada: desloque-se 58 centímetros à direita | Saída: D58R;
+Entrada: vá 8 centímetros para frente | Saída: D8F;
+Entrada: ande 67 centímetros para trás | Saída: D67B;
+Entrada: mova-se 42 centímetros para esquerda | Saída: D42L;
+Entrada: desloque-se 88 centímetros para direita | Saída: D88R;
+Entrada: vá 23 centímetros para frente | Saída: D23F;
+Entrada: ande 77 centímetros para atrás | Saída: D77B;
+Entrada: mova-se 13 centímetros para a esquerda | Saída: D13L;
+Entrada: desloque-se 98 centímetros para a direita | Saída: D98R;
+Entrada: vá 52 centímetros para frente | Saída: D52F;
+Entrada: ande 37 centímetros para trás | Saída: D37B;
+Entrada: mova-se 68 centímetros para esquerda | Saída: D68L;
+Entrada: desloque-se 83 centímetros para direita | Saída: D83R;
+Entrada: vá 7 centímetros para a frente | Saída: D7F;
+Entrada: ande 48 centímetros para atrás | Saída: D48B;
+Entrada: mova-se 22 centímetros à esquerda | Saída: D22L;
+Entrada: desloque-se 63 centímetros à direita | Saída: D63R;
+Entrada: vá 100 centímetros para frente | Saída: D100F;
+Entrada: ande 1 centímetro para trás | Saída: D1B;
+Entrada: mova-se 99 centímetros para esquerda | Saída: D99L;
+Entrada: desloque-se 44 centímetros para direita | Saída: D44R;
+Entrada: vá 17 centímetros para frente | Saída: D17F;
+Entrada: ande 56 centímetros para atrás | Saída: D56B;
+Entrada: mova-se 72 centímetros para a esquerda | Saída: D72L;
+Entrada: desloque-se 26 centímetros para a direita | Saída: D26R;
+Entrada: vá 81 centímetros para frente | Saída: D81F;
+Entrada: ande 11 centímetros para trás | Saída: D11B;
+Entrada: mova-se 94 centímetros à esquerda | Saída: D94L;
+Entrada: desloque-se 39 centímetros à direita | Saída: D39R;
+Entrada: vá 64 centímetros para a frente | Saída: D64F;
+Entrada: ande 29 centímetros para atrás | Saída: D29B;
+Entrada: mova-se 76 centímetros para esquerda | Saída: D76L;
+Entrada: desloque-se 51 centímetros para direita | Saída: D51R;
+Entrada: vá 3 centímetros para frente | Saída: D3F;
+Entrada: ande 86 centímetros para trás | Saída: D86B;
+Entrada: mova-se 19 centímetros para a esquerda | Saída: D19L;
+Entrada: desloque-se 97 centímetros para a direita | Saída: D97R;
+Entrada: vá 41 centímetros para frente | Saída: D41F;
+Entrada: ande 74 centímetros para atrás | Saída: D74B;
+Entrada: mova-se 16 centímetros à esquerda | Saída: D16L;
+Entrada: desloque-se 59 centímetros à direita | Saída: D59R;
+Entrada: vá 87 centímetros para frente | Saída: D87F;
+Entrada: ande 24 centímetros para trás | Saída: D24B;
+Entrada: mova-se 66 centímetros para esquerda | Saída: D66L;
+Entrada: desloque-se 31 centímetros para direita | Saída: D31R;
+
+# ============================================================================
+# COMANDOS SIMPLES - ROTAÇÃO (37.5% - 150 exemplos)
+# ============================================================================
+
+# Rotação para Direita (Clockwise)
+Entrada: gire 30 graus para direita | Saída: R30R;
+Entrada: vire 45 graus para a direita | Saída: R45R;
+Entrada: rotacione 60 graus à direita | Saída: R60R;
+Entrada: faça uma rotação de 90 graus para direita | Saída: R90R;
+Entrada: gire 120 graus para a direita | Saída: R120R;
+Entrada: vire 135 graus à direita | Saída: R135R;
+Entrada: rotacione 150 graus para direita | Saída: R150R;
+Entrada: faça uma rotação de 180 graus para a direita | Saída: R180R;
+Entrada: gire 30 graus sentido horário | Saída: R30R;
+Entrada: vire 45 graus sentido horário | Saída: R45R;
+Entrada: rotacione 60 graus sentido horário | Saída: R60R;
+Entrada: faça uma rotação de 90 graus sentido horário | Saída: R90R;
+Entrada: gire 120 graus sentido horário | Saída: R120R;
+Entrada: vire 135 graus sentido horário | Saída: R135R;
+Entrada: rotacione 150 graus sentido horário | Saída: R150R;
+Entrada: faça uma rotação de 180 graus sentido horário | Saída: R180R;
+Entrada: gire 45 graus para direita | Saída: R45R;
+Entrada: vire 90 graus para a direita | Saída: R90R;
+Entrada: rotacione 30 graus à direita | Saída: R30R;
+Entrada: faça uma rotação de 60 graus para direita | Saída: R60R;
+Entrada: gire 150 graus para a direita | Saída: R150R;
+Entrada: vire 120 graus à direita | Saída: R120R;
+Entrada: rotacione 135 graus para direita | Saída: R135R;
+Entrada: faça uma rotação de 180 graus para a direita | Saída: R180R;
+Entrada: gire 60 graus sentido horário | Saída: R60R;
+Entrada: vire 30 graus sentido horário | Saída: R30R;
+Entrada: rotacione 90 graus sentido horário | Saída: R90R;
+Entrada: faça uma rotação de 45 graus sentido horário | Saída: R45R;
+Entrada: gire 180 graus sentido horário | Saída: R180R;
+Entrada: vire 150 graus sentido horário | Saída: R150R;
+Entrada: rotacione 120 graus sentido horário | Saída: R120R;
+Entrada: faça uma rotação de 135 graus sentido horário | Saída: R135R;
+Entrada: gire 90 graus para direita | Saída: R90R;
+Entrada: vire 60 graus para a direita | Saída: R60R;
+Entrada: rotacione 120 graus à direita | Saída: R120R;
+Entrada: faça uma rotação de 30 graus para direita | Saída: R30R;
+Entrada: gire 135 graus para a direita | Saída: R135R;
+Entrada: vire 180 graus à direita | Saída: R180R;
+
+# Rotação para Esquerda (Counter-clockwise)
+Entrada: gire 30 graus para esquerda | Saída: R30L;
+Entrada: vire 45 graus para a esquerda | Saída: R45L;
+Entrada: rotacione 60 graus à esquerda | Saída: R60L;
+Entrada: faça uma rotação de 90 graus para esquerda | Saída: R90L;
+Entrada: gire 120 graus para a esquerda | Saída: R120L;
+Entrada: vire 135 graus à esquerda | Saída: R135L;
+Entrada: rotacione 150 graus para esquerda | Saída: R150L;
+Entrada: faça uma rotação de 180 graus para a esquerda | Saída: R180L;
+Entrada: gire 30 graus sentido anti-horário | Saída: R30L;
+Entrada: vire 45 graus sentido anti-horário | Saída: R45L;
+Entrada: rotacione 60 graus sentido anti-horário | Saída: R60L;
+Entrada: faça uma rotação de 90 graus sentido anti-horário | Saída: R90L;
+Entrada: gire 120 graus sentido anti-horário | Saída: R120L;
+Entrada: vire 135 graus sentido anti-horário | Saída: R135L;
+Entrada: rotacione 150 graus sentido anti-horário | Saída: R150L;
+Entrada: faça uma rotação de 180 graus sentido anti-horário | Saída: R180L;
+Entrada: gire 45 graus para esquerda | Saída: R45L;
+Entrada: vire 90 graus para a esquerda | Saída: R90L;
+Entrada: rotacione 30 graus à esquerda | Saída: R30L;
+Entrada: faça uma rotação de 60 graus para esquerda | Saída: R60L;
+Entrada: gire 150 graus para a esquerda | Saída: R150L;
+Entrada: vire 120 graus à esquerda | Saída: R120L;
+Entrada: rotacione 135 graus para esquerda | Saída: R135L;
+Entrada: faça uma rotação de 180 graus para a esquerda | Saída: R180L;
+Entrada: gire 60 graus sentido anti-horário | Saída: R60L;
+Entrada: vire 30 graus sentido anti-horário | Saída: R30L;
+Entrada: rotacione 90 graus sentido anti-horário | Saída: R90L;
+Entrada: faça uma rotação de 45 graus sentido anti-horário | Saída: R45L;
+Entrada: gire 180 graus sentido anti-horário | Saída: R180L;
+Entrada: vire 150 graus sentido anti-horário | Saída: R150L;
+Entrada: rotacione 120 graus sentido anti-horário | Saída: R120L;
+Entrada: faça uma rotação de 135 graus sentido anti-horário | Saída: R135L;
+Entrada: gire 90 graus para esquerda | Saída: R90L;
+Entrada: vire 60 graus para a esquerda | Saída: R60L;
+Entrada: rotacione 120 graus à esquerda | Saída: R120L;
+Entrada: faça uma rotação de 30 graus para esquerda | Saída: R30L;
+Entrada: gire 135 graus para a esquerda | Saída: R135L;
+Entrada: vire 180 graus à esquerda | Saída: R180L;
+
+# Variações adicionais de rotação
+Entrada: rotacione 45 graus sentido horário | Saída: R45R;
+Entrada: faça uma rotação de 150 graus para direita | Saída: R150R;
+Entrada: gire 60 graus para a direita | Saída: R60R;
+Entrada: vire 135 graus sentido horário | Saída: R135R;
+Entrada: rotacione 90 graus à direita | Saída: R90R;
+Entrada: faça uma rotação de 120 graus sentido horário | Saída: R120R;
+Entrada: gire 180 graus para direita | Saída: R180R;
+Entrada: vire 30 graus para a direita | Saída: R30R;
+Entrada: rotacione 45 graus para esquerda | Saída: R45L;
+Entrada: faça uma rotação de 150 graus sentido anti-horário | Saída: R150L;
+Entrada: gire 60 graus à esquerda | Saída: R60L;
+Entrada: vire 135 graus para a esquerda | Saída: R135L;
+Entrada: rotacione 90 graus para esquerda | Saída: R90L;
+Entrada: faça uma rotação de 120 graus para a esquerda | Saída: R120L;
+Entrada: gire 180 graus à esquerda | Saída: R180L;
+Entrada: vire 30 graus sentido anti-horário | Saída: R30L;
+Entrada: rotacione 150 graus para a direita | Saída: R150R;
+Entrada: faça uma rotação de 60 graus para direita | Saída: R60R;
+Entrada: gire 120 graus sentido horário | Saída: R120R;
+Entrada: vire 45 graus à direita | Saída: R45R;
+Entrada: rotacione 180 graus sentido horário | Saída: R180R;
+Entrada: faça uma rotação de 90 graus para a direita | Saída: R90R;
+Entrada: gire 30 graus para direita | Saída: R30R;
+Entrada: vire 135 graus sentido horário | Saída: R135R;
+Entrada: rotacione 150 graus à esquerda | Saída: R150L;
+Entrada: faça uma rotação de 60 graus sentido anti-horário | Saída: R60L;
+Entrada: gire 120 graus para a esquerda | Saída: R120L;
+Entrada: vire 45 graus para esquerda | Saída: R45L;
+Entrada: rotacione 180 graus para a esquerda | Saída: R180L;
+Entrada: faça uma rotação de 90 graus à esquerda | Saída: R90L;
+Entrada: gire 30 graus sentido anti-horário | Saída: R30L;
+Entrada: vire 135 graus para esquerda | Saída: R135L;
+Entrada: rotacione 90 graus para direita | Saída: R90R;
+Entrada: faça uma rotação de 45 graus sentido horário | Saída: R45R;
+Entrada: gire 150 graus à direita | Saída: R150R;
+Entrada: vire 120 graus sentido horário | Saída: R120R;
+Entrada: rotacione 30 graus para a direita | Saída: R30R;
+Entrada: faça uma rotação de 60 graus à direita | Saída: R60R;
+Entrada: gire 135 graus sentido horário | Saída: R135R;
+Entrada: vire 180 graus para direita | Saída: R180R;
+Entrada: rotacione 90 graus sentido anti-horário | Saída: R90L;
+Entrada: faça uma rotação de 45 graus para a esquerda | Saída: R45L;
+Entrada: gire 150 graus para esquerda | Saída: R150L;
+Entrada: vire 120 graus à esquerda | Saída: R120L;
+Entrada: rotacione 30 graus sentido anti-horário | Saída: R30L;
+Entrada: faça uma rotação de 60 graus para esquerda | Saída: R60L;
+Entrada: gire 135 graus para a esquerda | Saída: R135L;
+Entrada: vire 180 graus sentido anti-horário | Saída: R180L;
+
+# ============================================================================
+# COMANDOS COMPOSTOS - 2 AÇÕES (15% - 60 exemplos)
+# ============================================================================
+
+# Deslocamento + Rotação
+Entrada: vá 40 centímetros para frente e depois gire 90 graus para direita | Saída: D40F;R90R;
+Entrada: ande 30 centímetros para trás, então vire 45 graus para esquerda | Saída: D30B;R45L;
+Entrada: mova-se 50 centímetros para esquerda e depois rotacione 60 graus sentido horário | Saída: D50L;R60R;
+Entrada: desloque-se 25 centímetros para direita, então faça uma rotação de 90 graus sentido anti-horário | Saída: D25R;R90L;
+Entrada: vá 60 centímetros para frente e depois vire 180 graus para direita | Saída: D60F;R180R;
+Entrada: ande 20 centímetros para a frente, então gire 30 graus para a esquerda | Saída: D20F;R30L;
+Entrada: mova-se 35 centímetros para trás e depois rotacione 120 graus para direita | Saída: D35B;R120R;
+Entrada: desloque-se 45 centímetros à esquerda, então vire 45 graus sentido horário | Saída: D45L;R45R;
+Entrada: vá 70 centímetros para direita e depois faça uma rotação de 90 graus para esquerda | Saída: D70R;R90L;
+Entrada: ande 15 centímetros para frente, então gire 60 graus sentido anti-horário | Saída: D15F;R60L;
+Entrada: mova-se 55 centímetros para atrás e depois vire 135 graus para a direita | Saída: D55B;R135R;
+Entrada: desloque-se 80 centímetros para a esquerda, então rotacione 150 graus para esquerda | Saída: D80L;R150L;
+Entrada: vá 10 centímetros para a direita e depois faça uma rotação de 30 graus sentido horário | Saída: D10R;R30R;
+Entrada: ande 65 centímetros para frente, então gire 90 graus para direita | Saída: D65F;R90R;
+Entrada: mova-se 90 centímetros para trás e depois vire 120 graus sentido anti-horário | Saída: D90B;R120L;
+
+# Rotação + Deslocamento
+Entrada: gire 90 graus para direita e depois vá 40 centímetros para frente | Saída: R90R;D40F;
+Entrada: vire 45 graus para esquerda, então ande 30 centímetros para trás | Saída: R45L;D30B;
+Entrada: rotacione 60 graus sentido horário e depois mova-se 50 centímetros para esquerda | Saída: R60R;D50L;
+Entrada: faça uma rotação de 90 graus sentido anti-horário, então desloque-se 25 centímetros para direita | Saída: R90L;D25R;
+Entrada: gire 180 graus para direita e depois vá 60 centímetros para frente | Saída: R180R;D60F;
+Entrada: vire 30 graus para a esquerda, então ande 20 centímetros para a frente | Saída: R30L;D20F;
+Entrada: rotacione 120 graus para direita e depois mova-se 35 centímetros para trás | Saída: R120R;D35B;
+Entrada: faça uma rotação de 45 graus sentido horário, então desloque-se 45 centímetros à esquerda | Saída: R45R;D45L;
+Entrada: gire 90 graus para esquerda e depois vá 70 centímetros para direita | Saída: R90L;D70R;
+Entrada: vire 60 graus sentido anti-horário, então ande 15 centímetros para frente | Saída: R60L;D15F;
+Entrada: rotacione 135 graus para a direita e depois mova-se 55 centímetros para atrás | Saída: R135R;D55B;
+Entrada: faça uma rotação de 150 graus para esquerda, então desloque-se 80 centímetros para a esquerda | Saída: R150L;D80L;
+Entrada: gire 30 graus sentido horário e depois vá 10 centímetros para a direita | Saída: R30R;D10R;
+Entrada: vire 90 graus para direita, então ande 65 centímetros para frente | Saída: R90R;D65F;
+Entrada: rotacione 120 graus sentido anti-horário e depois mova-se 90 centímetros para trás | Saída: R120L;D90B;
+
+# Deslocamento + Deslocamento (direções diferentes)
+Entrada: vá 30 centímetros para frente e depois ande 20 centímetros para direita | Saída: D30F;D20R;
+Entrada: ande 40 centímetros para esquerda, então mova-se 25 centímetros para trás | Saída: D40L;D25B;
+Entrada: mova-se 50 centímetros para trás e depois desloque-se 35 centímetros para frente | Saída: D50B;D35F;
+Entrada: desloque-se 60 centímetros para direita, então vá 45 centímetros para esquerda | Saída: D60R;D45L;
+Entrada: vá 15 centímetros para a frente e depois ande 55 centímetros para a direita | Saída: D15F;D55R;
+Entrada: ande 70 centímetros para a esquerda, então mova-se 10 centímetros para atrás | Saída: D70L;D10B;
+Entrada: mova-se 80 centímetros para atrás e depois desloque-se 65 centímetros para a frente | Saída: D80B;D65F;
+Entrada: desloque-se 90 centímetros à direita, então vá 75 centímetros à esquerda | Saída: D90R;D75L;
+
+# Rotação + Rotação (direções diferentes)
+Entrada: gire 45 graus para direita e depois vire 90 graus para esquerda | Saída: R45R;R90L;
+Entrada: vire 60 graus para esquerda, então rotacione 30 graus sentido horário | Saída: R60L;R30R;
+Entrada: rotacione 90 graus sentido horário e depois faça uma rotação de 45 graus sentido anti-horário | Saída: R90R;R45L;
+Entrada: faça uma rotação de 120 graus para esquerda, então gire 60 graus para direita | Saída: R120L;R60R;
+Entrada: gire 135 graus sentido anti-horário e depois vire 45 graus para a direita | Saída: R135L;R45R;
+Entrada: vire 150 graus para direita, então rotacione 90 graus para a esquerda | Saída: R150R;R90L;
+Entrada: rotacione 30 graus para a esquerda e depois faça uma rotação de 120 graus sentido horário | Saída: R30L;R120R;
+Entrada: faça uma rotação de 180 graus sentido horário, então gire 60 graus sentido anti-horário | Saída: R180R;R60L;
+
+# ============================================================================
+# COMANDOS COMPOSTOS - 3 AÇÕES (10% - 40 exemplos)
+# ============================================================================
+
+# Deslocamento + Rotação + Deslocamento
+Entrada: vá 30 centímetros para frente, gire 90 graus para direita e depois ande 20 centímetros para frente | Saída: D30F;R90R;D20F;
+Entrada: ande 40 centímetros para trás, vire 45 graus para esquerda, então mova-se 25 centímetros para frente | Saída: D40B;R45L;D25F;
+Entrada: mova-se 50 centímetros para esquerda, rotacione 60 graus sentido horário e depois desloque-se 35 centímetros para direita | Saída: D50L;R60R;D35R;
+Entrada: desloque-se 25 centímetros para direita, faça uma rotação de 90 graus sentido anti-horário, então vá 45 centímetros para trás | Saída: D25R;R90L;D45B;
+Entrada: vá 60 centímetros para frente, gire 180 graus para direita e depois ande 30 centímetros para esquerda | Saída: D60F;R180R;D30L;
+Entrada: ande 20 centímetros para a frente, vire 30 graus para a esquerda, então mova-se 50 centímetros para a direita | Saída: D20F;R30L;D50R;
+Entrada: mova-se 35 centímetros para trás, rotacione 120 graus para direita e depois desloque-se 40 centímetros para frente | Saída: D35B;R120R;D40F;
+Entrada: desloque-se 45 centímetros à esquerda, faça uma rotação de 45 graus sentido horário, então vá 55 centímetros para trás | Saída: D45L;R45R;D55B;
+Entrada: vá 70 centímetros para direita, gire 90 graus para esquerda e depois ande 15 centímetros para esquerda | Saída: D70R;R90L;D15L;
+Entrada: ande 15 centímetros para frente, vire 60 graus sentido anti-horário, então mova-se 65 centímetros para direita | Saída: D15F;R60L;D65R;
+
+# Rotação + Deslocamento + Rotação
+Entrada: gire 90 graus para direita, vá 40 centímetros para frente e depois vire 45 graus para esquerda | Saída: R90R;D40F;R45L;
+Entrada: vire 45 graus para esquerda, ande 30 centímetros para trás, então rotacione 60 graus sentido horário | Saída: R45L;D30B;R60R;
+Entrada: rotacione 60 graus sentido horário, mova-se 50 centímetros para esquerda e depois faça uma rotação de 90 graus sentido anti-horário | Saída: R60R;D50L;R90L;
+Entrada: faça uma rotação de 90 graus sentido anti-horário, desloque-se 25 centímetros para direita, então gire 30 graus para direita | Saída: R90L;D25R;R30R;
+Entrada: gire 180 graus para direita, vá 60 centímetros para frente e depois vire 120 graus para esquerda | Saída: R180R;D60F;R120L;
+Entrada: vire 30 graus para a esquerda, ande 20 centímetros para a frente, então rotacione 135 graus para a direita | Saída: R30L;D20F;R135R;
+Entrada: rotacione 120 graus para direita, mova-se 35 centímetros para trás e depois faça uma rotação de 45 graus para esquerda | Saída: R120R;D35B;R45L;
+Entrada: faça uma rotação de 45 graus sentido horário, desloque-se 45 centímetros à esquerda, então gire 150 graus sentido anti-horário | Saída: R45R;D45L;R150L;
+Entrada: gire 90 graus para esquerda, vá 70 centímetros para direita e depois vire 60 graus para direita | Saída: R90L;D70R;R60R;
+Entrada: vire 60 graus sentido anti-horário, ande 15 centímetros para frente, então rotacione 90 graus sentido horário | Saída: R60L;D15F;R90R;
+
+# Deslocamento + Deslocamento + Rotação
+Entrada: vá 30 centímetros para frente, ande 20 centímetros para direita e depois gire 90 graus para esquerda | Saída: D30F;D20R;R90L;
+Entrada: ande 40 centímetros para esquerda, mova-se 25 centímetros para trás, então vire 45 graus para direita | Saída: D40L;D25B;R45R;
+Entrada: mova-se 50 centímetros para trás, desloque-se 35 centímetros para frente e depois rotacione 60 graus sentido horário | Saída: D50B;D35F;R60R;
+Entrada: desloque-se 60 centímetros para direita, vá 45 centímetros para esquerda, então faça uma rotação de 120 graus para esquerda | Saída: D60R;D45L;R120L;
+Entrada: vá 15 centímetros para a frente, ande 55 centímetros para a direita e depois gire 30 graus sentido anti-horário | Saída: D15F;D55R;R30L;
+
+# Rotação + Rotação + Deslocamento
+Entrada: gire 45 graus para direita, vire 90 graus para esquerda e depois vá 30 centímetros para frente | Saída: R45R;R90L;D30F;
+Entrada: vire 60 graus para esquerda, rotacione 30 graus sentido horário, então ande 40 centímetros para trás | Saída: R60L;R30R;D40B;
+Entrada: rotacione 90 graus sentido horário, faça uma rotação de 45 graus sentido anti-horário e depois mova-se 50 centímetros para esquerda | Saída: R90R;R45L;D50L;
+Entrada: faça uma rotação de 120 graus para esquerda, gire 60 graus para direita, então desloque-se 25 centímetros para direita | Saída: R120L;R60R;D25R;
+Entrada: gire 135 graus sentido anti-horário, vire 45 graus para a direita e depois vá 60 centímetros para frente | Saída: R135L;R45R;D60F;
+
+# Complexas com múltiplas mudanças de direção
+Entrada: vá 25 centímetros para frente, gire 90 graus para direita e depois ande 30 centímetros para esquerda | Saída: D25F;R90R;D30L;
+Entrada: ande 35 centímetros para trás, vire 45 graus para esquerda, então mova-se 40 centímetros para direita | Saída: D35B;R45L;D40R;
+Entrada: mova-se 45 centímetros para esquerda, rotacione 60 graus sentido horário e depois desloque-se 20 centímetros para trás | Saída: D45L;R60R;D20B;
+Entrada: desloque-se 55 centímetros para direita, faça uma rotação de 90 graus sentido anti-horário, então vá 50 centímetros para frente | Saída: D55R;R90L;D50F;
+Entrada: vá 65 centímetros para frente, gire 180 graus para direita e depois ande 10 centímetros para direita | Saída: D65F;R180R;D10R;
+Entrada: ande 75 centímetros para a frente, vire 30 graus para a esquerda, então mova-se 15 centímetros para a esquerda | Saída: D75F;R30L;D15L;
+Entrada: mova-se 85 centímetros para trás, rotacione 120 graus para direita e depois desloque-se 25 centímetros para trás | Saída: D85B;R120R;D25B;
+Entrada: desloque-se 95 centímetros à esquerda, faça uma rotação de 45 graus sentido horário, então vá 35 centímetros para frente | Saída: D95L;R45R;D35F;
+Entrada: vá 5 centímetros para direita, gire 90 graus para esquerda e depois ande 45 centímetros para direita | Saída: D5R;R90L;D45R;
+Entrada: ande 80 centímetros para frente, vire 60 graus sentido anti-horário, então mova-se 55 centímetros para esquerda | Saída: D80F;R60L;D55L;

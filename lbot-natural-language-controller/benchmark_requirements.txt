@@ -1,0 +1,13 @@
+# Requirements for LBot V5 vs V5.1 Benchmark
+# Install with: pip install -r benchmark_requirements.txt
+
+# Core dependencies (required)
+torch>=2.0.0
+numpy>=1.24.0
+
+# Visualization dependencies (optional but recommended)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Note: The benchmark script will work without matplotlib/seaborn,
+# but visualizations will be skipped
