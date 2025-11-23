@@ -8,13 +8,13 @@
         class="mode-btn" 
         [class.active]="currentMode === 'chat'"
         (click)="switchMode('chat')">
-        💬 Chat
+        <lucide-icon [img]="MessageCircleIcon" [size]="16" style="vertical-align: middle; margin-right: 4px;"></lucide-icon>Chat
       </button>
       <button 
         class="mode-btn" 
         [class.active]="currentMode === 'controls'"
         (click)="switchMode('controls')">
-        🎮 Controles
+        <lucide-icon [img]="Gamepad2Icon" [size]="16" style="vertical-align: middle; margin-right: 4px;"></lucide-icon>Controles
       </button>
     </div>
     
