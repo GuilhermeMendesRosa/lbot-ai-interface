@@ -1,20 +1,22 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CommandBuilderService, ControlState } from '../../services/command-builder.service';
+import { FormsModule } from '@angular/forms';
+import { CommandBuilderService, TimelineCommand } from '../../services/command-builder.service';
 import { SimulatorBridgeService } from '../../services/simulator-bridge.service';
 
 @Component({
   selector: 'app-virtual-controls',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './virtual-controls.html',
   styleUrls: ['./virtual-controls.css']
 })
 export class VirtualControlsComponent implements OnInit {
-  public controlState: ControlState;
-  public lastDescription: string = '';
+  public timeline: TimelineCommand[] = [];
+  public userDescription: string = '';
   public isExecuting: boolean = false;
-  
+  public generatedLbml: string = '';
+
   // Increment values
   public readonly DISTANCE_INCREMENT = 10; // 10cm
   public readonly ROTATION_INCREMENT = 10; // 10 degrees
@@ -22,191 +24,167 @@ export class VirtualControlsComponent implements OnInit {
   constructor(
     private commandBuilder: CommandBuilderService,
     private simulatorBridge: SimulatorBridgeService
-  ) {
-    this.controlState = this.commandBuilder.createEmptyState();
-  }
+  ) {}
 
   ngOnInit(): void {
-    // Reset state on init
     this.reset();
   }
 
   /**
-   * Increments forward movement by 10cm.
+   * Adds a movement command to the timeline.
+   * @param direction - Movement direction
    */
-  public moveForward(): void {
-    this.controlState.forward += this.DISTANCE_INCREMENT;
+  public addMovement(direction: 'F' | 'B' | 'L' | 'R'): void {
+    const command = this.commandBuilder.createMovementCommand(
+      direction,
+      this.DISTANCE_INCREMENT,
+      ''
+    );
+    this.timeline.push(command);
+    this.updateGeneratedLbml();
   }
 
   /**
-   * Increments backward movement by 10cm.
+   * Adds a rotation command to the timeline.
+   * @param direction - Rotation direction
    */
-  public moveBackward(): void {
-    this.controlState.backward += this.DISTANCE_INCREMENT;
+  public addRotation(direction: 'L' | 'R'): void {
+    const command = this.commandBuilder.createRotationCommand(
+      direction,
+      this.ROTATION_INCREMENT,
+      ''
+    );
+    this.timeline.push(command);
+    this.updateGeneratedLbml();
   }
 
   /**
-   * Increments left movement by 10cm.
+   * Removes a command from the timeline.
+   * @param index - Index of the command to remove
    */
-  public moveLeft(): void {
-    this.controlState.left += this.DISTANCE_INCREMENT;
+  public removeCommand(index: number): void {
+    this.timeline = this.commandBuilder.removeCommand(this.timeline, index);
+    this.updateGeneratedLbml();
   }
 
   /**
-   * Increments right movement by 10cm.
+   * Updates the description of a command in the timeline.
+   * @param index - Index of the command
+   * @param description - New description
    */
-  public moveRight(): void {
-    this.controlState.right += this.DISTANCE_INCREMENT;
+  public updateCommandDescription(index: number, description: string): void {
+    this.timeline = this.commandBuilder.updateCommandDescription(
+      this.timeline,
+      index,
+      description
+    );
   }
 
   /**
-   * Increments left rotation by 10 degrees.
-   */
-  public rotateLeft(): void {
-    this.controlState.rotateLeft += this.ROTATION_INCREMENT;
-  }
-
-  /**
-   * Increments right rotation by 10 degrees.
-   */
-  public rotateRight(): void {
-    this.controlState.rotateRight += this.ROTATION_INCREMENT;
-  }
-
-  /**
-   * Decrements forward movement by 10cm (undo).
-   */
-  public undoForward(): void {
-    if (this.controlState.forward >= this.DISTANCE_INCREMENT) {
-      this.controlState.forward -= this.DISTANCE_INCREMENT;
-    }
-  }
-
-  /**
-   * Decrements backward movement by 10cm (undo).
-   */
-  public undoBackward(): void {
-    if (this.controlState.backward >= this.DISTANCE_INCREMENT) {
-      this.controlState.backward -= this.DISTANCE_INCREMENT;
-    }
-  }
-
-  /**
-   * Decrements left movement by 10cm (undo).
-   */
-  public undoLeft(): void {
-    if (this.controlState.left >= this.DISTANCE_INCREMENT) {
-      this.controlState.left -= this.DISTANCE_INCREMENT;
-    }
-  }
-
-  /**
-   * Decrements right movement by 10cm (undo).
-   */
-  public undoRight(): void {
-    if (this.controlState.right >= this.DISTANCE_INCREMENT) {
-      this.controlState.right -= this.DISTANCE_INCREMENT;
-    }
-  }
-
-  /**
-   * Decrements left rotation by 10 degrees (undo).
-   */
-  public undoRotateLeft(): void {
-    if (this.controlState.rotateLeft >= this.ROTATION_INCREMENT) {
-      this.controlState.rotateLeft -= this.ROTATION_INCREMENT;
-    }
-  }
-
-  /**
-   * Decrements right rotation by 10 degrees (undo).
-   */
-  public undoRotateRight(): void {
-    if (this.controlState.rotateRight >= this.ROTATION_INCREMENT) {
-      this.controlState.rotateRight -= this.ROTATION_INCREMENT;
-    }
-  }
-
-  /**
-   * Executes the accumulated movement commands.
+   * Executes the accumulated commands in the timeline.
    */
   public async execute(): Promise<void> {
-    if (!this.hasMovement() || this.isExecuting) {
+    if (!this.hasCommands() || this.isExecuting) {
       return;
     }
 
     this.isExecuting = true;
-    this.lastDescription = '';
 
     try {
-      // Build LBML from control state
-      const lbml = this.commandBuilder.buildLbmlFromControls(this.controlState);
-      
+      // Build LBML from timeline
+      const lbml = this.commandBuilder.buildLbmlFromTimeline(this.timeline);
+
       console.log('[VirtualControls] Executing LBML:', lbml);
 
       // Execute the LBML command
       this.simulatorBridge.executeLbml(lbml);
 
-      // Wait for execution to complete (approximate timing based on command complexity)
-      const executionTime = this.estimateExecutionTime(lbml);
+      // Wait for execution to complete
+      const executionTime = this.estimateExecutionTime(this.timeline);
       await this.delay(executionTime);
 
-      // Generate and display description
-      this.lastDescription = this.commandBuilder.describeMovement(lbml);
-      
-      console.log('[VirtualControls] Description:', this.lastDescription);
+      console.log('[VirtualControls] Execution completed');
 
-      // Reset state after successful execution
+      // Reset timeline after successful execution
       this.reset();
     } catch (error) {
       console.error('[VirtualControls] Execution error:', error);
-      this.lastDescription = 'Erro ao executar o movimento.';
     } finally {
       this.isExecuting = false;
     }
   }
 
   /**
-   * Resets all accumulated values to zero.
+   * Resets the timeline and clears all data.
    */
   public reset(): void {
-    this.controlState = this.commandBuilder.createEmptyState();
+    this.timeline = [];
+    this.userDescription = '';
+    this.generatedLbml = '';
   }
 
   /**
-   * Checks if there are any accumulated movements.
+   * Checks if the timeline has any commands.
    */
-  public hasMovement(): boolean {
-    return this.commandBuilder.hasMovement(this.controlState);
+  public hasCommands(): boolean {
+    return this.commandBuilder.hasCommands(this.timeline);
   }
 
   /**
-   * Gets the total accumulated distance movement.
+   * Gets the total distance accumulated in the timeline.
    */
   public getTotalDistance(): number {
-    return this.controlState.forward + 
-           this.controlState.backward + 
-           this.controlState.left + 
-           this.controlState.right;
+    return this.timeline
+      .filter(item => item.command.type === 'D')
+      .reduce((total, item) => total + item.command.value, 0);
   }
 
   /**
-   * Gets the total accumulated rotation.
+   * Gets the total rotation accumulated in the timeline.
    */
   public getTotalRotation(): number {
-    return this.controlState.rotateLeft + this.controlState.rotateRight;
+    return this.timeline
+      .filter(item => item.command.type === 'R')
+      .reduce((total, item) => total + item.command.value, 0);
   }
 
   /**
-   * Estimates execution time based on LBML complexity.
-   * @param lbml - The LBML command string
+   * Gets a human-readable label for a command direction.
+   * @param command - The parsed command
+   * @returns Direction label
+   */
+  public getDirectionLabel(command: { type: string; direction: string }): string {
+    if (command.type === 'D') {
+      const labels: Record<string, string> = { 'F': 'Frente', 'B': 'Trás', 'L': 'Esquerda', 'R': 'Direita' };
+      return labels[command.direction] || command.direction;
+    } else {
+      const labels: Record<string, string> = { 'L': 'Girar Esq.', 'R': 'Girar Dir.' };
+      return labels[command.direction] || command.direction;
+    }
+  }
+
+  /**
+   * Updates the generated LBML string.
+   */
+  private updateGeneratedLbml(): void {
+    this.generatedLbml = this.commandBuilder.buildLbmlFromTimeline(this.timeline);
+  }
+
+  /**
+   * Estimates execution time based on timeline length.
+   * @param timeline - The command timeline
    * @returns Estimated time in milliseconds
    */
-  private estimateExecutionTime(lbml: string): number {
-    // Count commands (each command separated by semicolon)
-    const commandCount = (lbml.match(/;/g) || []).length;
+  private estimateExecutionTime(timeline: TimelineCommand[]): number {
     // Base time per command + 300ms delay between commands (from robo-simulator.ts)
-    return commandCount * 1000 + (commandCount - 1) * 300 + 500; // Extra 500ms buffer
+    return timeline.length * 1000 + (timeline.length - 1) * 300 + 500; // Extra 500ms buffer
+  }
+
+  /**
+   * TrackBy function for ngFor to improve performance.
+   */
+  public trackByIndex(index: number): number {
+    return index;
   }
 
   /**

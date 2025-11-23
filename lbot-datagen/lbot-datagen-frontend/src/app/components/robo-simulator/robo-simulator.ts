@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit, Inject, PLATFORM_ID, ChangeDetectorRef, NgZone } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit, Inject, PLATFORM_ID, ChangeDetectorRef, NgZone, Input } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { LucideAngularModule, Camera, Target } from 'lucide-angular';
 import { SimulatorBridgeService, SimulatorCommand } from '../../services/simulator-bridge.service';
@@ -37,12 +37,12 @@ import * as CANNON from 'cannon-es';
           <span class="status-label">Comando:</span>
           <span class="status-value" [textContent]="currentCommand"></span>
         </div>
-        <div class="status-item distance-item">
+        <div class="status-item distance-item" *ngIf="showGoals">
           <span class="status-label">Distância até B:</span>
           <span class="status-value" [textContent]="getDistanceToGoal().toFixed(1)"></span>
         </div>
       </div>
-      <div class="score-counter">
+      <div class="score-counter" *ngIf="showGoals">
         <div class="score-label">PONTOS</div>
         <div class="score-value" [textContent]="score"></div>
       </div>
@@ -50,7 +50,7 @@ import * as CANNON from 'cannon-es';
         <button class="camera-button" (click)="toggleCameraMode()" [disabled]="robotState.isAnimating">
           <lucide-icon [img]="CameraIcon" [size]="18" style="vertical-align: middle; margin-right: 4px;"></lucide-icon>{{ cameraController.isThirdPersonView() ? 'Vista Normal' : '3ª Pessoa' }}
         </button>
-        <button class="goal-button" (click)="generateNewLevel()" [disabled]="robotState.isAnimating">
+        <button class="goal-button" (click)="generateNewLevel()" [disabled]="robotState.isAnimating" *ngIf="showGoals">
           <lucide-icon [img]="TargetIcon" [size]="18" style="vertical-align: middle; margin-right: 4px;"></lucide-icon>Novo Desafio
         </button>
       </div>
@@ -68,6 +68,8 @@ import * as CANNON from 'cannon-es';
 })
 export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef<HTMLDivElement>;
+
+  @Input() showGoals = true;
 
   private sub?: Subscription;
   private scene!: THREE.Scene;
