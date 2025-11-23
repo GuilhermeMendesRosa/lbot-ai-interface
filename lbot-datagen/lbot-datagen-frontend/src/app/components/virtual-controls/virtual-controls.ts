@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CommandBuilderService, TimelineCommand } from '../../services/command-builder.service';
 import { SimulatorBridgeService } from '../../services/simulator-bridge.service';
+import { VirtualControlService } from '../../services/virtual-control.service';
 
 @Component({
   selector: 'app-virtual-controls',
@@ -23,7 +24,8 @@ export class VirtualControlsComponent implements OnInit {
 
   constructor(
     private commandBuilder: CommandBuilderService,
-    private simulatorBridge: SimulatorBridgeService
+    private simulatorBridge: SimulatorBridgeService,
+    private virtualControlService: VirtualControlService
   ) {}
 
   ngOnInit(): void {
@@ -118,6 +120,20 @@ export class VirtualControlsComponent implements OnInit {
       await this.delay(executionTime);
 
       console.log('[VirtualControls] Execution completed');
+
+      // Save session to backend
+      this.virtualControlService.createSession(
+        this.userDescription,
+        lbml,
+        this.timeline
+      ).subscribe({
+        next: (session) => {
+          console.log('[VirtualControls] Session saved:', session);
+        },
+        error: (error) => {
+          console.error('[VirtualControls] Error saving session:', error);
+        }
+      });
 
       // Reset timeline after successful execution
       this.reset();
