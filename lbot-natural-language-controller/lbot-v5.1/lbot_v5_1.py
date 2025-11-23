@@ -1,29 +1,25 @@
 #!/usr/bin/env python3
 """
-LBot V5/V5.1 - Runtime Translator
-===================================
+LBot V5.1 - Runtime Translator with RASA
+==========================================
 
-Standalone script to load trained LBot V5 or V5.1 model and translate
-Portuguese commands to LBML V4 format.
+Standalone script to load trained LBot V5.1 model with Relational-Aware
+Self-Attention (RASA) and translate Portuguese commands to LBML V4 format.
 
-V5.1 includes Relational-Aware Self-Attention (RASA) for better accuracy
-on complex commands with multiple directions.
+V5.1 improves accuracy on complex commands with multiple directions.
 
 Usage:
-    python lbot_v5.py "ande 40 centímetros para frente"
+    python lbot_v5_1.py "ande 40 centímetros para frente"
     # Output: D40F;
 
-    python lbot_v5.py --model lbot_translator_v5-1.pt "ande 40 centímetros para frente"
-    # Uses V5.1 model
-
 Or use interactively:
-    python lbot_v5.py
+    python lbot_v5_1.py
     # Then type commands at the prompt
 
 Requirements:
     - torch
     - numpy
-    - lbot_translator_v5.pt or lbot_translator_v5-1.pt (trained model file)
+    - lbot_translator_v5-1.pt (trained model file)
 """
 
 import torch
@@ -382,7 +378,7 @@ class LBotTranslator:
 
 def interactive_mode(translator):
     """Run interactive translation mode"""
-    print("\n🤖 === LBOT V5/V5.1 TRANSLATOR ===")
+    print("\n🤖 === LBOT V5.1 TRANSLATOR (with RASA) ===")
     print("Digite comandos em português ou 'sair' para terminar")
     print("Exemplos:")
     print("  • vá 40 centímetros para frente")
@@ -412,8 +408,8 @@ def main():
     """Main entry point"""
     parser = argparse.ArgumentParser(description='LBot V5/V5.1 Translator')
     parser.add_argument('command', nargs='*', help='Portuguese command to translate')
-    parser.add_argument('--model', '-m', default='lbot_translator_v5.pt', 
-                       help='Path to model file (default: lbot_translator_v5.pt)')
+    parser.add_argument('--model', '-m', default='lbot_translator_v5-1.pt', 
+                       help='Path to model file (default: lbot_translator_v5-1.pt)')
     args = parser.parse_args()
     
     try:
@@ -432,10 +428,10 @@ def main():
     
     except FileNotFoundError as e:
         print(f"❌ {e}")
-        print("\nPara treinar o modelo:")
+        print("\nPara treinar o modelo V5.1:")
         print("  1. Gere o dataset: python generate_dataset_v5.py")
-        print("  2. Execute o notebook: lbot_training_v5.ipynb no Google Colab")
-        print("  3. Faça download do lbot_translator_v5.pt")
+        print("  2. Execute o notebook: lbot_training_v5-1.ipynb no Google Colab")
+        print("  3. Faça download do lbot_translator_v5-1.pt")
         sys.exit(1)
     except Exception as e:
         print(f"❌ Erro: {e}")
