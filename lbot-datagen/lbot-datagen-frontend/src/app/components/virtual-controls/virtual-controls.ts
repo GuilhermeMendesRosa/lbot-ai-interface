@@ -98,7 +98,7 @@ export class VirtualControlsComponent implements OnInit {
    * Executes the accumulated commands in the timeline.
    */
   public async execute(): Promise<void> {
-    if (!this.hasCommands() || this.isExecuting) {
+    if (!this.hasCommands() || this.isExecuting || !this.userDescription.trim()) {
       return;
     }
 

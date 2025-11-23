@@ -151,7 +151,7 @@
     <button
       class="action-btn execute-btn"
       (click)="execute()"
-      [disabled]="!hasCommands() || isExecuting">
+      [disabled]="!hasCommands() || isExecuting || !userDescription.trim()">
       <span *ngIf="!isExecuting">▶ Executar</span>
       <span *ngIf="isExecuting">⏳ Executando...</span>
     </button>
