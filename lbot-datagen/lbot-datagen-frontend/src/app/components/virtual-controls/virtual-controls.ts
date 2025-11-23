@@ -35,12 +35,19 @@ export class VirtualControlsComponent implements OnInit {
    * @param direction - Movement direction
    */
   public addMovement(direction: 'F' | 'B' | 'L' | 'R'): void {
-    const command = this.commandBuilder.createMovementCommand(
-      direction,
-      this.DISTANCE_INCREMENT,
-      ''
-    );
-    this.timeline.push(command);
+    const lastCommand = this.timeline[this.timeline.length - 1];
+    if (lastCommand && lastCommand.command.type === 'D' && lastCommand.command.direction === direction) {
+      lastCommand.command.value += this.DISTANCE_INCREMENT;
+      const directionMap: Record<string, string> = { 'F': 'frente', 'B': 'trás', 'L': 'esquerda', 'R': 'direita' };
+      lastCommand.description = `Mover ${lastCommand.command.value}cm para ${directionMap[direction]}`;
+    } else {
+      const command = this.commandBuilder.createMovementCommand(
+        direction,
+        this.DISTANCE_INCREMENT,
+        ''
+      );
+      this.timeline.push(command);
+    }
     this.updateGeneratedLbml();
   }
 
@@ -49,12 +56,19 @@ export class VirtualControlsComponent implements OnInit {
    * @param direction - Rotation direction
    */
   public addRotation(direction: 'L' | 'R'): void {
-    const command = this.commandBuilder.createRotationCommand(
-      direction,
-      this.ROTATION_INCREMENT,
-      ''
-    );
-    this.timeline.push(command);
+    const lastCommand = this.timeline[this.timeline.length - 1];
+    if (lastCommand && lastCommand.command.type === 'R' && lastCommand.command.direction === direction) {
+      lastCommand.command.value += this.ROTATION_INCREMENT;
+      const directionMap: Record<string, string> = { 'L': 'esquerda', 'R': 'direita' };
+      lastCommand.description = `Girar ${lastCommand.command.value}° para ${directionMap[direction]}`;
+    } else {
+      const command = this.commandBuilder.createRotationCommand(
+        direction,
+        this.ROTATION_INCREMENT,
+        ''
+      );
+      this.timeline.push(command);
+    }
     this.updateGeneratedLbml();
   }
 
