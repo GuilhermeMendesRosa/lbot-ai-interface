@@ -1,4 +1,4 @@
-import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit, Inject, PLATFORM_ID, ChangeDetectorRef, NgZone, Input } from '@angular/core';
+import { Component, ElementRef, OnDestroy, OnInit, ViewChild, AfterViewInit, Inject, PLATFORM_ID, ChangeDetectorRef, NgZone, Input, OnChanges, SimpleChanges } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { LucideAngularModule, Camera, Target } from 'lucide-angular';
 import { SimulatorBridgeService, SimulatorCommand } from '../../services/simulator-bridge.service';
@@ -66,7 +66,7 @@ import * as CANNON from 'cannon-es';
   `,
   styleUrls: ['./robo-simulator.css']
 })
-export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy {
+export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy, OnChanges {
   @ViewChild('canvasContainer', { static: true }) canvasContainer!: ElementRef<HTMLDivElement>;
 
   @Input() showGoals = true;
@@ -157,6 +157,17 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     }
   }
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['showGoals']) {
+      this.updateMarkersVisibility();
+      if (!changes['showGoals'].currentValue) {
+        this.hasWon = false;
+      } else if (this.startMarker) {
+        this.generateNewLevel();
+      }
+    }
+  }
+
   private initializeSimulator(): void {
     // Initialize THREE.js
     const sceneSetup = this.threeScene.initScene(this.canvasContainer);
@@ -184,6 +195,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     
     // Create game markers
     this.createGameMarkers();
+    this.updateMarkersVisibility();
     
     // Generate initial level positions and place robot at start point A
     this.generateNewLevel();
@@ -483,6 +495,14 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
     this.scene.add(this.goalTextSprite);
   }
   
+  private updateMarkersVisibility(): void {
+    const visible = this.showGoals;
+    if (this.startMarker) this.startMarker.visible = visible;
+    if (this.startTextSprite) this.startTextSprite.visible = visible;
+    if (this.goalMarker) this.goalMarker.visible = visible;
+    if (this.goalTextSprite) this.goalTextSprite.visible = visible;
+  }
+  
   private createTextSprite(text: string, color: number): THREE.Sprite {
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d')!;
@@ -504,6 +524,7 @@ export class RoboSimulatorComponent implements OnInit, AfterViewInit, OnDestroy 
   }
   
   private checkWinCondition(): void {
+    if (!this.showGoals) return;
     if (!this.hasWon && !this.robotState.isAnimating) {
       const distance = this.getDistanceToGoal();
       if (distance < this.WIN_DISTANCE) {
